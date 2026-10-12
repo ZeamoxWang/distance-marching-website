@@ -273,3 +273,170 @@ footer a { text-underline-offset: 2px; }
   .results-grid { gap: 28px; }
   section { padding-top: 56px; }
 }
+
+/* Trajectory viewer */
+
+h3.sub { margin-top: 48px; font-size: 20px; }
+
+.wide-block {
+  width: min(var(--wide), 100vw - 48px);
+  margin-left: 50%;
+  transform: translateX(-50%);
+}
+
+.tv-pair { display: grid; gap: 36px; margin-top: 28px; margin-bottom: 44px; }
+
+.tv-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.tv-swatch { width: 12px; height: 12px; border-radius: 3px; }
+
+.tv {
+  display: grid;
+  grid-template-columns: 1fr;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.tv.tv-detail { grid-template-columns: 1fr 330px; }
+
+.tv-stage { position: relative; height: 520px; touch-action: none; }
+.tv-stage canvas { display: block; width: 100%; height: 100%; }
+
+.tv-note {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  max-width: 360px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.tv-note b { color: var(--text); font-weight: 600; }
+
+.tv-back {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  padding: 5px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--text);
+  font: 500 13px "Inter", sans-serif;
+  cursor: pointer;
+}
+
+.tv-back:hover { border-color: var(--text); }
+
+.tv-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.tv-loading[hidden], .tv-note[hidden], .tv-back[hidden], .tv-panel[hidden] { display: none; }
+
+.tv-panel {
+  padding: 20px 20px 16px;
+  border-left: 1px solid var(--line);
+  font-size: 14px;
+  overflow-y: auto;
+  max-height: 520px;
+}
+
+.tv-panel h3 { margin: 2px 0 2px; font-size: 18px; text-transform: capitalize; }
+
+.tv-eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tv-meta { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+
+.tv-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; margin-bottom: 16px; }
+.tv-strip figure { margin: 0; cursor: pointer; }
+.tv-strip img { border-radius: 4px; outline: 2px solid transparent; outline-offset: 1px; }
+.tv-strip figure.active img { outline-color: var(--text); }
+.tv-strip figcaption { margin-top: 2px; color: var(--muted); font-size: 11px; text-align: center; }
+
+.tv-chart { position: relative; }
+.tv-chart-title { margin-bottom: 4px; color: var(--muted); font-size: 12.5px; }
+.tv-chart svg { display: block; width: 100%; height: 120px; overflow: visible; }
+.tv-chart .grid { stroke: var(--line); stroke-width: 1; }
+.tv-chart .tick { fill: var(--muted); font-size: 9.5px; font-family: "Inter", sans-serif; }
+.tv-chart .series { fill: none; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.tv-chart .cursor { stroke: var(--text); stroke-width: 1; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
+.tv-chart .cursor-dot { stroke: #fff; stroke-width: 2; }
+.tv-chart .hit { cursor: crosshair; }
+
+.tv-tip {
+  position: absolute;
+  top: 18px;
+  transform: translateX(-50%);
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--text);
+  color: #fff;
+  font-size: 11.5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.tv-tip[hidden] { display: none; }
+
+.tv-scrub { display: flex; align-items: center; gap: 10px; margin: 12px 0 10px; }
+.tv-scrub input { flex: 1; accent-color: var(--text); }
+.tv-readout { min-width: 112px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+.tv-play {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #fff;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tv-play:hover { border-color: var(--text); }
+
+.tv-explain { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+
+@media (max-width: 860px) {
+  .tv.tv-detail { grid-template-columns: 1fr; }
+  .tv-panel { border-left: 0; border-top: 1px solid var(--line); max-height: none; }
+  .tv-stage { height: 420px; }
+}
+
+.tv-readout { white-space: nowrap; }
+
+.tv-hover {
+  position: absolute;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--text);
+  color: #fff;
+  font-size: 12px;
+  text-transform: capitalize;
+  pointer-events: none;
+}
+
+.tv-hover[hidden] { display: none; }

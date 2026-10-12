@@ -18,6 +18,11 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
           onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
   <link rel="stylesheet" href="static/style.css">
+  <script type="importmap">
+    {"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+                 "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
+  </script>
+  <script type="module" src="static/traj.js"></script>
 </head>
 <body>
 
@@ -208,6 +213,24 @@
       <div class="sample-label">Gradient descent, 250 steps, η = 0.5</div>
       <img src="static/images/imagenet_gradient_descent.jpg" alt="ImageNet samples with gradient descent">
     </figure>
+
+    <h3 class="sub">Explore the trajectories</h3>
+    <p>
+      Each of the curated samples above is generated from a fixed random seed and a class label in 250 steps.
+      Select a sample to follow its trajectory: we project its 250 latent states onto their first three
+      principal directions (as in the appendix of the paper, extended from two to three) and show level sets of
+      the predicted distance \(u_\theta\) around the path, with the decoded image every 50 steps.
+    </p>
+    <div class="tv-pair wide-block">
+      <div>
+        <div class="tv-title"><span class="tv-swatch" style="background:#eb6834"></span>Sphere Tracing</div>
+        <div class="tv" data-traj-viewer="st"></div>
+      </div>
+      <div>
+        <div class="tv-title"><span class="tv-swatch" style="background:#2a78d6"></span>Gradient Descent</div>
+        <div class="tv" data-traj-viewer="gd"></div>
+      </div>
+    </div>
 
     <p class="lead">Uncurated samples for time- and class-unconditional generation on CIFAR-10.</p>
     <figure class="narrow">

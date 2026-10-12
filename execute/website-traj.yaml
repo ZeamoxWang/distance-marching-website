@@ -50,8 +50,8 @@ spec:
               RUN=/pv/distance-marching-runs/$RUN_ID
               mkdir -p "$RUN"
               cp -r /pv/distance-marching /nvme/code
-              cp -r /pv/distance-marching-website /nvme/site
-              (cd /nvme/code && git rev-parse HEAD; cd /nvme/site && git rev-parse HEAD) | tee "$RUN/commit.txt"
+              cp -r "$RUN/site" /nvme/site
+              (cd /nvme/code && git rev-parse HEAD; cat /nvme/site/COMMIT) | tee "$RUN/commit.txt"
               python3 /nvme/site/tools/make_trajectories.py \
                 --ckpt /pv/EqM/results/010-EqM-XL-2-Linear-dist-None/checkpoints/0400000.pt --code /nvme/code/imagenet \
                 --ref /pv/distance-marching-runs/website-ref --out "$RUN/out" 2>&1 | tee "$RUN/log.txt"
