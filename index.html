@@ -73,24 +73,22 @@
     <h2>Abstract</h2>
     <p>
       Modern generative models based on diffusion or flow matching transport noise toward the data
-      manifold, without representing the data manifold explicitly. We propose <em>Distance Marching</em>,
-      which explores an alternative design by explicitly modeling a distance field of the data manifold.
+      manifold, without representing the data manifold explicitly. We propose Distance Marching that
+      explores an alternative design by explicitly modeling a distance field of the data manifold.
       A distance field offers a geometric view of generation as a descent process toward the data
       manifold using only the current position. The negative gradient of the distance field provides
       the direction, and the distance value can optionally determine the step size.
-    </p>
-    <p>
       However, sparse training data in high-dimensional space make it difficult to identify the closest
       points on the data manifold needed to train the distance field. To address this challenge, we
       design new loss functions that emphasize denoising targets from closer data points. Our analysis
       shows that, without time input, emphasizing closer targets reduces denoising ambiguity and the
       bias toward the data mean. This distance-field perspective naturally motivates two principled
       deterministic samplers, showing fast convergence in inference.
-    </p>
-    <p>
       As a result, our model is the only one without time input that remains competitive with
       time-conditioned models across datasets and architectures. Moreover, our distance prediction is
       also helpful for early stopping during sampling and for out-of-distribution detection.
+      We hope distance-field modeling can open a promising direction for exploring generative modeling
+      from a geometric perspective.
     </p>
   </section>
 
@@ -119,36 +117,36 @@
       <div class="card">
         <h3>Directional Eikonal Loss</h3>
         $$\Big\lVert \mathbf{v}_\theta(\mathbf{x}) - \frac{\mathbf{x}-\mathbf{s}}{\sqrt{\lVert \mathbf{x}-\mathbf{s}\rVert^2 + c_0}} \Big\rVert^2$$
-        <p>Aligns the direction with the normalized offset to the target and fixes the offset of the learned field.</p>
+        <p>Disambiguates the offset \(C\) of the learned field as \(c_0\) by constraining the direction.</p>
       </div>
     </div>
 
     <p>
-      Training pairs \((\mathbf{x}, \mathbf{s})\) are plain linear interpolations between Gaussian noise
-      and a data sample \(\mathbf{s}\). The learned field then gives two deterministic samplers, both
-      starting from pure noise:
+      For each training pair \((\mathbf{x}, \mathbf{s})\), \(\mathbf{x}\) is the standard linear interpolation
+      between Gaussian noise and a data sample \(\mathbf{s}\), drawn without reassignment. Starting from a
+      Gaussian sample, either of two deterministic samplers moves toward the data manifold with step size
+      \(\eta\):
     </p>
 
     <div class="cards">
       <div class="card">
-        <h3>Sphere tracing</h3>
+        <h3>Sphere Tracing</h3>
         $$\mathbf{x} \leftarrow \mathbf{x} - \eta\, u_\theta(\mathbf{x})\, \mathbf{v}_\theta(\mathbf{x})$$
-        <p>The predicted distance sets the step length.</p>
+        <p>Uses both the distance and the directional information.</p>
       </div>
       <div class="card">
-        <h3>Gradient descent</h3>
+        <h3>Gradient Descent</h3>
         $$\mathbf{x} \leftarrow \mathbf{x} - \eta\, \mathbf{v}_\theta(\mathbf{x})$$
-        <p>Fixed-length steps along the field's descent direction.</p>
+        <p>Uses only the directional information.</p>
       </div>
     </div>
 
     <figure>
       <img src="static/images/two_moons.png" alt="Two moons: learned distance field and sphere-tracing trajectories">
       <figcaption>
-        <b>Left:</b> on two moons, the learned field \(u_\theta\) (level sets; arrows show
-        \(-\nabla u_\theta\)) behaves like a distance function to the data (orange).
-        <b>Right:</b> sphere tracing moves samples from the initial noise (black) through intermediate
-        states (yellow) onto the data support (blue).
+        <b>Left:</b> target two moons (orange) and the learned distance-like scalar field \(u_\theta\) with
+        \(-\nabla u_\theta\). <b>Right:</b> our samples: initial (black), intermediate (yellow) and
+        final (blue).
       </figcaption>
     </figure>
   </section>
@@ -177,7 +175,7 @@
         </table>
       </div>
       <div>
-        <h3>ImageNet 256×256, SiT-B/2</h3>
+        <h3>ImageNet 256×256, with CFG</h3>
         <table>
           <thead><tr><th>Method</th><th class="num">FID ↓</th><th class="num">IS ↑</th></tr></thead>
           <tbody>
@@ -188,29 +186,30 @@
             <tr class="ours"><td>Ours, gradient descent</td><td class="num">6.67</td><td class="num"><b>311.31</b></td></tr>
           </tbody>
         </table>
-        <p class="note">Best result across CFG scales; 50k samples, 250 steps.</p>
+        <p class="note">Best results across different CFG scales (each metric at its own best scale); B/2 models, 50k samples, 250 steps.</p>
       </div>
     </div>
 
     <figure>
       <img src="static/images/fid_vs_steps.png" alt="FID versus fraction of generation steps for SiT and our two samplers">
       <figcaption>
-        Both samplers converge in a fraction of the steps that flow matching needs on ImageNet.
+        With step sizes tuned for the best 250-step performance, we reach the final FID of flow matching
+        (SiT with dopri5) within &lt;60% of the steps. ImageNet, B/2, no CFG.
       </figcaption>
     </figure>
   </section>
 
   <section>
     <h2>Samples</h2>
-    <p class="lead">ImageNet 256×256, class-conditional, DM-XL/2 with CFG 4.0, from the same initial noise.</p>
+    <p class="lead">Curated ImageNet 256×256 samples from our XL/2 model with CFG scale 4.0, applied to \(\mathbf{v}_\theta\) in gradient descent and to \(u_\theta \mathbf{v}_\theta\) in sphere tracing.</p>
     <figure class="wide">
-      <div class="sample-label">Sphere tracing</div>
+      <div class="sample-label">Sphere tracing, 250 steps, η = 0.015</div>
       <img src="static/images/imagenet_sphere_tracing.jpg" alt="ImageNet samples with sphere tracing">
-      <div class="sample-label">Gradient descent</div>
+      <div class="sample-label">Gradient descent, 250 steps, η = 0.5</div>
       <img src="static/images/imagenet_gradient_descent.jpg" alt="ImageNet samples with gradient descent">
     </figure>
 
-    <p class="lead">CIFAR-10, with neither class nor time input, uncurated.</p>
+    <p class="lead">Uncurated samples for time- and class-unconditional generation on CIFAR-10.</p>
     <figure class="narrow">
       <img class="pixelated" src="static/images/cifar10_samples.png" alt="Uncurated CIFAR-10 samples">
     </figure>
@@ -221,8 +220,8 @@
     <figure>
       <img src="static/images/distance_vs_steps.png" alt="Predicted distance over sampling steps on ImageNet">
       <figcaption>
-        The predicted distance \(u_\theta\) settles at \(\sqrt{c_0}\), its value on the data, well before
-        the 250 steps are used up (ImageNet, 64 initial noise vectors).
+        Predicted distance \(u_\theta\) along the sampling trajectories on ImageNet; it settles near
+        \(\sqrt{c_0}\) before the 250 steps are used up.
       </figcaption>
     </figure>
 
@@ -231,7 +230,8 @@
         <h3>Adaptive stopping</h3>
         <p>
           Stopping gradient descent once \(u_\theta\) has increased for 10 consecutive steps cuts the
-          average number of steps by 29.7% on ImageNet, while improving sFID and IS.
+          average number of steps by 29.7% on ImageNet and improves sFID and IS, at the cost of a small FID
+          increase.
         </p>
         <table>
           <thead><tr><th></th><th class="num">Steps ↓</th><th class="num">FID ↓</th><th class="num">sFID ↓</th><th class="num">IS ↑</th></tr></thead>
@@ -245,7 +245,7 @@
         <h3>Out-of-distribution detection</h3>
         <p>
           With CIFAR-10 as in-distribution data, the 0.010M-parameter distance head gives the best average
-          AUROC, three orders of magnitude smaller than prior energy-based models.
+          AUROC, despite being three orders of magnitude smaller than prior energy-based models.
         </p>
         <table>
           <thead><tr><th></th><th class="num">Params</th><th class="num">SVHN</th><th class="num">Textures</th><th class="num">Constant</th><th class="num">Avg.</th></tr></thead>
@@ -257,6 +257,7 @@
             <tr class="ours"><td>Ours</td><td class="num">0.010M</td><td class="num"><b>0.94</b></td><td class="num"><b>0.49</b></td><td class="num">0.95</td><td class="num"><b>0.79</b></td></tr>
           </tbody>
         </table>
+        <p class="note">AUROC ↑, CIFAR-10 as in-distribution data. Baseline results from Yoon et al. (2023) and Wang &amp; Du (2025).</p>
       </div>
     </div>
   </section>
