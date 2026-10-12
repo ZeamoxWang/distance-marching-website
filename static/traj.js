@@ -312,6 +312,9 @@ class Explorer {
 
     // thumbnails every 50 steps, on a rail above the box with leader lines to their states
     const steps = this.manifest.thumb_steps;
+    // order the rail in the direction the path moves along PC1 (the x axis), so that
+    // step 0 sits on the side where the path starts
+    const dir = Math.sign(pts[pts.length - 1].x - pts[0].x) || 1;
     steps.forEach((s, n) => {
       const p = pts[s];
       const dot = new THREE.Mesh(new THREE.SphereGeometry(0.032, 16, 12), new THREE.MeshLambertMaterial({ color: this.color }));
@@ -321,7 +324,7 @@ class Explorer {
       tex.colorSpace = THREE.SRGBColorSpace;
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
       sp.scale.set(0.36, 0.36, 1);
-      sp.position.set(-1.25 + (2.5 * n) / (steps.length - 1), 1.5, 0);
+      sp.position.set(dir * (-1.25 + (2.5 * n) / (steps.length - 1)), 1.5, 0);
       sp.renderOrder = 5;
       g.add(sp);
       const anchor = sp.position.clone().add(new THREE.Vector3(0, -0.19, 0));
