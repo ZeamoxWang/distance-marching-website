@@ -125,7 +125,14 @@ class Explorer {
     this.pointer = new THREE.Vector2(-10, -10);
     this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
     this.canvas.addEventListener('pointerleave', () => this.pointer.set(-10, -10));
-    this.canvas.addEventListener('click', (e) => this.onClick(e));
+    // tap detection on pointer events (more reliable than 'click' on a canvas that also hosts OrbitControls)
+    this.canvas.addEventListener('pointerdown', (e) => { this.downAt = [e.clientX, e.clientY]; });
+    this.canvas.addEventListener('pointerup', (e) => {
+      if (!this.downAt) return;
+      const moved = Math.hypot(e.clientX - this.downAt[0], e.clientY - this.downAt[1]);
+      this.downAt = null;
+      if (moved < 6) this.onClick(e);
+    });
     this.backBtn.addEventListener('click', () => this.showOverview());
 
     new ResizeObserver(() => this.resize()).observe(this.stage);
