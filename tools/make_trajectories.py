@@ -167,7 +167,15 @@ def load_sit(sit_code, ckpt_name, model_name, device):
     sit_download = load("sit_download", "download.py")
     from transport import Sampler, create_transport
 
-    state = sit_download.find_model(ckpt_name)
+    if ckpt_name.startswith("hf:"):  # hf:<repo>/<path in repo>, e.g. a .safetensors mirror
+        from huggingface_hub import hf_hub_download
+        repo, path = ckpt_name[3:].split("/", 2)[:2], ckpt_name[3:].split("/", 2)[2]
+        ckpt_name = hf_hub_download(repo_id="/".join(repo), filename=path)
+    if ckpt_name.endswith(".safetensors"):
+        from safetensors.torch import load_file
+        state = load_file(ckpt_name)
+    else:
+        state = sit_download.find_model(ckpt_name)
     state = state.get("ema", state.get("model", state)) if isinstance(state, dict) and ("ema" in state or "model" in state) else state
     learn_sigma = state["final_layer.linear.weight"].shape[0] == 32
     model = sit_models.SiT_models[model_name](input_size=32, num_classes=1000, learn_sigma=learn_sigma)
@@ -265,6 +273,19 @@ def main(args):
         Image.fromarray(sit_finals[j]).save(os.path.join(args.out, "sit", f"{k:06d}.png"))
         sprite_sheet(vae, sit_states[j], device).save(os.path.join(args.out, "sit", f"{k:06d}_sheet.jpg"), quality=82)
     print("SiT done", flush=True)
+    # the paper's main-text sequence figure stores every 10% of the 250 states of sample 85
+    seq = os.path.join(args.ref, "sit_seq")
+    if os.path.isdir(seq) and 85 in CURATED:
+        j = CURATED.index(85)
+        idx = [max(0, round(args.steps * p / 10) - 1) for p in range(11)]
+        ims = decode(vae, sit_states[j, idx].to(device))
+        report["sit_vs_paper_seq"] = {}
+        for p, im in enumerate(ims):
+            f = os.path.join(seq, f"000085_{p}.png")
+            if os.path.exists(f):
+                r = np.asarray(Image.open(f).convert("RGB")).astype(np.float32)
+                report["sit_vs_paper_seq"][p] = float(np.abs(r - im.astype(np.float32)).mean())
+        print("SiT vs paper sequence (MAE per 10%):", report["sit_vs_paper_seq"], flush=True)
 
     report["compare"] = {}
     for sampler, eta in SAMPLERS.items():
