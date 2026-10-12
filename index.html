@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Distance Marching for Generative Modeling</title>
+  <meta name="description" content="Distance Marching learns a distance field of the data manifold and generates images by descending it, without any time input. NeurIPS 2026.">
+  <meta property="og:title" content="Distance Marching for Generative Modeling">
+  <meta property="og:description" content="Generative modeling by learning a distance field of the data manifold, without time input. NeurIPS 2026.">
+  <meta property="og:image" content="static/images/teaser.png">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+
+<header class="hero">
+  <p class="venue">NeurIPS 2026</p>
+  <h1>Distance Marching for Generative Modeling</h1>
+
+  <p class="authors">
+    <span>Zimo Wang</span>
+    <span>Ishit Mehta</span>
+    <span>Haolin Lu</span>
+    <span>Xunpeng Huang</span>
+    <span>Chung-En Sun</span>
+    <span>Ge Yan</span>
+    <span>Tsui-Wei Weng</span>
+    <span>Tzu-Mao Li</span>
+  </p>
+  <p class="affiliation">UC San Diego</p>
+
+  <nav class="links">
+    <a class="button disabled" aria-disabled="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+      Paper <small>(coming soon)</small>
+    </a>
+    <a class="button" href="https://github.com/ZeamoxWang/distance-marching">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>
+      Code
+    </a>
+    <a class="button" href="https://huggingface.co/zimowang/Distance-Marching">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7L12 12l8.7-5M12 22V12"/></svg>
+      Checkpoints
+    </a>
+    <a class="button" href="#citation">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h4v4H8v3H6v-5a2 2 0 0 1 1-2zM15 7h4v4h-3v3h-2v-5a2 2 0 0 1 1-2z"/></svg>
+      BibTeX
+    </a>
+  </nav>
+</header>
+
+<main>
+
+  <figure class="wide teaser">
+    <img src="static/images/teaser.png" alt="Sampling trajectories of Distance Marching versus flow matching on a distance field over the data manifold">
+    <figcaption>
+      Distance Marching generates images without time input. It learns a denoising direction that
+      focuses on closer targets, whereas the flow-matching loss favors a direction biased toward the
+      data mean early in generation. Shown are outputs after 20% of the sampling steps: our
+      trajectories wander less.
+    </figcaption>
+  </figure>
+
+  <section>
+    <h2>Abstract</h2>
+    <p>
+      Modern generative models based on diffusion or flow matching transport noise toward the data
+      manifold, without representing the data manifold explicitly. We propose <em>Distance Marching</em>,
+      which explores an alternative design by explicitly modeling a distance field of the data manifold.
+      A distance field offers a geometric view of generation as a descent process toward the data
+      manifold using only the current position. The negative gradient of the distance field provides
+      the direction, and the distance value can optionally determine the step size.
+    </p>
+    <p>
+      However, sparse training data in high-dimensional space make it difficult to identify the closest
+      points on the data manifold needed to train the distance field. To address this challenge, we
+      design new loss functions that emphasize denoising targets from closer data points. Our analysis
+      shows that, without time input, emphasizing closer targets reduces denoising ambiguity and the
+      bias toward the data mean. This distance-field perspective naturally motivates two principled
+      deterministic samplers, showing fast convergence in inference.
+    </p>
+    <p>
+      As a result, our model is the only one without time input that remains competitive with
+      time-conditioned models across datasets and architectures. Moreover, our distance prediction is
+      also helpful for early stopping during sampling and for out-of-distribution detection.
+    </p>
+  </section>
+
+  <section>
+    <h2>Method</h2>
+
+    <figure>
+      <img src="static/images/architecture.png" alt="Architecture: a two-layer CNN head predicts the distance, which replaces the time embedding of the backbone">
+    </figure>
+
+    <p>
+      The network sees only the noisy input \(\mathbf{x}\) and an optional class label \(y\), with no
+      time input. A lightweight two-layer CNN head predicts the distance \(u_\theta(\mathbf{x})\) to the
+      data manifold, and the unchanged backbone (U-Net or SiT) receives it through the slot that normally
+      takes the time embedding, predicting the denoising direction \(\mathbf{v}_\theta(\mathbf{x})\).
+      The head adds only 0.009%–0.19% parameters.
+    </p>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Inverse-distance one-step loss</h3>
+        $$\frac{\big\lVert \mathbf{x} - u_\theta(\mathbf{x})\,\mathbf{v}_\theta(\mathbf{x}) - \mathbf{s} \big\rVert^2}{\lVert \mathbf{x}-\mathbf{s}\rVert^2 + \epsilon}$$
+        <p>Weighting by the inverse squared distance emphasizes the closest data points and removes the
+          bias toward the data mean.</p>
+      </div>
+      <div class="card">
+        <h3>Directional eikonal loss</h3>
+        $$\Big\lVert \mathbf{v}_\theta(\mathbf{x}) - \frac{\mathbf{x}-\mathbf{s}}{\sqrt{\lVert \mathbf{x}-\mathbf{s}\rVert^2 + c_0}} \Big\rVert^2$$
+        <p>Aligns the direction with the normalized offset to the target and fixes the offset of the learned field.</p>
+      </div>
+    </div>
+
+    <p>
+      Training pairs \((\mathbf{x}, \mathbf{s})\) are plain linear interpolations between Gaussian noise
+      and a data sample \(\mathbf{s}\). The learned field then gives two deterministic samplers, both
+      starting from pure noise:
+    </p>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Sphere tracing</h3>
+        $$\mathbf{x} \leftarrow \mathbf{x} - \eta\, u_\theta(\mathbf{x})\, \mathbf{v}_\theta(\mathbf{x})$$
+        <p>The predicted distance sets the step length.</p>
+      </div>
+      <div class="card">
+        <h3>Gradient descent</h3>
+        $$\mathbf{x} \leftarrow \mathbf{x} - \eta\, \mathbf{v}_\theta(\mathbf{x})$$
+        <p>Fixed-length steps along the field's descent direction.</p>
+      </div>
+    </div>
+
+    <figure>
+      <img src="static/images/two_moons.png" alt="Two moons: learned distance field and sphere-tracing trajectories">
+      <figcaption>
+        <b>Left:</b> on two moons, the learned field \(u_\theta\) (level sets; arrows show
+        \(-\nabla u_\theta\)) behaves like a distance function to the data (orange).
+        <b>Right:</b> sphere tracing moves samples from the initial noise (black) through intermediate
+        states (yellow) onto the data support (blue).
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Results</h2>
+
+    <div class="results-grid">
+      <div>
+        <h3>CIFAR-10, unconditional</h3>
+        <table>
+          <thead><tr><th>Method</th><th>w/o \(t\)</th><th class="num">FID ↓</th></tr></thead>
+          <tbody>
+            <tr><td>NCSN++</td><td></td><td class="num">2.45</td></tr>
+            <tr><td>DDPM++</td><td></td><td class="num">3.45</td></tr>
+            <tr><td>FM</td><td></td><td class="num">6.35</td></tr>
+            <tr><td>EDM</td><td></td><td class="num"><b>1.99</b></td></tr>
+            <tr><td>1-RF FM</td><td></td><td class="num">2.53</td></tr>
+            <tr><td>CLEL-large</td><td>✓</td><td class="num">8.61</td></tr>
+            <tr><td>uEDM</td><td>✓</td><td class="num"><b>2.23</b></td></tr>
+            <tr><td>EM</td><td>✓</td><td class="num">3.34</td></tr>
+            <tr><td>EqM</td><td>✓</td><td class="num">3.36</td></tr>
+            <tr class="ours"><td>Ours, gradient descent</td><td>✓</td><td class="num">2.54</td></tr>
+            <tr class="ours"><td>Ours, sphere tracing</td><td>✓</td><td class="num"><b>2.23</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3>ImageNet 256×256, SiT-B/2</h3>
+        <table>
+          <thead><tr><th>Method</th><th class="num">FID ↓</th><th class="num">IS ↑</th></tr></thead>
+          <tbody>
+            <tr><td>SiT</td><td class="num">7.66</td><td class="num">254.77</td></tr>
+            <tr><td>uEDM</td><td class="num">7.96</td><td class="num">–</td></tr>
+            <tr><td>EqM</td><td class="num">6.93</td><td class="num">281.87</td></tr>
+            <tr class="ours"><td>Ours, sphere tracing</td><td class="num"><b>6.59</b></td><td class="num">310.02</td></tr>
+            <tr class="ours"><td>Ours, gradient descent</td><td class="num">6.67</td><td class="num"><b>311.31</b></td></tr>
+          </tbody>
+        </table>
+        <p class="note">Best result across CFG scales; 50k samples, 250 steps.</p>
+      </div>
+    </div>
+
+    <figure>
+      <img src="static/images/fid_vs_steps.png" alt="FID versus fraction of generation steps for SiT and our two samplers">
+      <figcaption>
+        Both samplers converge in a fraction of the steps that flow matching needs on ImageNet.
+      </figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Samples</h2>
+    <p class="lead">ImageNet 256×256, class-conditional, DM-XL/2 with CFG 4.0, from the same initial noise.</p>
+    <figure class="wide">
+      <div class="sample-label">Sphere tracing</div>
+      <img src="static/images/imagenet_sphere_tracing.jpg" alt="ImageNet samples with sphere tracing">
+      <div class="sample-label">Gradient descent</div>
+      <img src="static/images/imagenet_gradient_descent.jpg" alt="ImageNet samples with gradient descent">
+    </figure>
+
+    <p class="lead">CIFAR-10, with neither class nor time input, uncurated.</p>
+    <figure class="narrow">
+      <img class="pixelated" src="static/images/cifar10_samples.png" alt="Uncurated CIFAR-10 samples">
+    </figure>
+  </section>
+
+  <section>
+    <h2>Using the predicted distance</h2>
+    <figure>
+      <img src="static/images/distance_vs_steps.png" alt="Predicted distance over sampling steps on ImageNet">
+      <figcaption>
+        The predicted distance \(u_\theta\) settles at \(\sqrt{c_0}\), its value on the data, well before
+        the 250 steps are used up (ImageNet, 64 initial noise vectors).
+      </figcaption>
+    </figure>
+
+    <div class="results-grid">
+      <div>
+        <h3>Adaptive stopping</h3>
+        <p>
+          Stopping gradient descent once \(u_\theta\) has increased for 10 consecutive steps cuts the
+          average number of steps by 29.7% on ImageNet, while improving sFID and IS.
+        </p>
+        <table>
+          <thead><tr><th></th><th class="num">Steps ↓</th><th class="num">FID ↓</th><th class="num">sFID ↓</th><th class="num">IS ↑</th></tr></thead>
+          <tbody>
+            <tr><td>Original GD</td><td class="num">250.0</td><td class="num"><b>32.16</b></td><td class="num">7.52</td><td class="num">45.16</td></tr>
+            <tr class="ours"><td>Adaptive GD</td><td class="num"><b>175.8</b></td><td class="num">32.73</td><td class="num"><b>6.70</b></td><td class="num"><b>45.86</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div>
+        <h3>Out-of-distribution detection</h3>
+        <p>
+          With CIFAR-10 as in-distribution data, the 0.010M-parameter distance head gives the best average
+          AUROC, three orders of magnitude smaller than prior energy-based models.
+        </p>
+        <table>
+          <thead><tr><th></th><th class="num">Params</th><th class="num">SVHN</th><th class="num">Textures</th><th class="num">Constant</th><th class="num">Avg.</th></tr></thead>
+          <tbody>
+            <tr><td>PixelCNN++</td><td class="num">54M</td><td class="num">0.32</td><td class="num">0.33</td><td class="num">0.71</td><td class="num">0.45</td></tr>
+            <tr><td>GLOW</td><td class="num">44M</td><td class="num">0.24</td><td class="num">0.27</td><td class="num">–</td><td class="num">0.26</td></tr>
+            <tr><td>IGEBM</td><td class="num">19M</td><td class="num">0.63</td><td class="num">0.48</td><td class="num">0.39</td><td class="num">0.50</td></tr>
+            <tr><td>EqM</td><td class="num">130M</td><td class="num">0.55</td><td class="num"><b>0.49</b></td><td class="num"><b>1.00</b></td><td class="num">0.68</td></tr>
+            <tr class="ours"><td>Ours</td><td class="num">0.010M</td><td class="num"><b>0.94</b></td><td class="num"><b>0.49</b></td><td class="num">0.95</td><td class="num"><b>0.79</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="citation">
+    <h2>BibTeX</h2>
+    <div class="bibtex">
+      <button class="copy" type="button" onclick="copyBib(this)">Copy</button>
+<pre><code id="bib">@inproceedings{wang2026distancemarching,
+  title     = {Distance Marching for Generative Modeling},
+  author    = {Wang, Zimo and Mehta, Ishit and Lu, Haolin and Huang, Xunpeng and
+               Sun, Chung-En and Yan, Ge and Weng, Tsui-Wei and Li, Tzu-Mao},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2026}
+}</code></pre>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>
+    Built on <a href="https://github.com/facebookresearch/flow_matching">Flow Matching</a>,
+    <a href="https://github.com/willisma/SiT">SiT</a> and
+    <a href="https://github.com/raywang4/EqM">Equilibrium Matching</a>.
+  </p>
+</footer>
+
+<script>
+  function copyBib(btn) {
+    navigator.clipboard.writeText(document.getElementById('bib').innerText).then(() => {
+      btn.textContent = 'Copied';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    });
+  }
+</script>
+</body>
+</html>
