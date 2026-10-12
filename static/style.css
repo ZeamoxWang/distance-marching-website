@@ -464,3 +464,11 @@ h3.sub { margin-top: 48px; font-size: 20px; }
 .tv-legend-title { color: var(--text); font-weight: 500; }
 .tv-legend span { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
 .tv-legend-note { max-width: 150px; margin-top: 2px; line-height: 1.35; }
+
+.tv-note-overview { padding: 6px 8px; margin: -6px -8px; border-radius: 8px; background: rgba(255, 255, 255, 0.85); }
+
+@media (max-width: 860px) {
+  .tv-legend { font-size: 10.5px; padding: 6px 8px; }
+  .tv-legend-note, .tv-note-detail { display: none; }
+  .tv-note-overview { max-width: 260px; font-size: 12px; }
+}

@@ -234,7 +234,9 @@ class Explorer {
       `<div class="tv-legend-note">darkest: closest to the data manifold</div>`;
     this.legend.hidden = false;
     this.setStep(meta.coords.length - 1);
-    this.dtCamera.position.set(3.1, 1.5, 4.6);
+    // pull the camera back on narrow (portrait) stages so the thumbnail rail fits
+    const aspect = this.stage.clientWidth / Math.max(1, this.stage.clientHeight);
+    this.dtCamera.position.set(3.1, 1.5, 4.6).multiplyScalar(Math.max(1, 1.25 / aspect));
     this.controls.target.set(0, 0.3, 0);
     this.controls.enabled = true;
     this.mode = 'detail';
@@ -364,8 +366,8 @@ class Explorer {
       <p class="tv-explain">
         Coordinates: projection onto the first three principal directions of this trajectory's 250 latent states,
         centered at the generated sample (explained variance ${ev}). Shells: level sets of
-        u<sub>θ</sub>(x<sub>end</sub> + Pz) for this class, darker = smaller distance. Axes are rescaled
-        independently so that all three directions are visible.
+        u<sub>θ</sub>(x<sub>end</sub> + Pz) for this class, darker = smaller distance. All three axes share the
+        same scale, so the path looks as straight as it is.
       </p>`;
     this.slider = this.panel.querySelector('input[type=range]');
     this.readout = this.panel.querySelector('.tv-readout');
