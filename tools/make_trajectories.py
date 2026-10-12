@@ -14,7 +14,11 @@ sphere tracing with step 0.015 and gradient descent with step 0.5), this script
    P = [p1, p2, p3] and the generated endpoint x_end as origin,
 4. evaluates the distance head u_theta(x, y) on a 3D grid x_end + P z,
 5. decodes the states every 50 steps (0, 50, ..., 200, 249) to thumbnails,
-6. compares the regenerated final images with the curated PNGs.
+6. compares the regenerated final images with the curated PNGs,
+7. runs the original SiT-XL/2 (flow matching, dopri5 with 250 output times, CFG 4.0)
+   from the same initial noise and label, and projects its states onto the same
+   PCA axes (fitted on the Distance Marching trajectory only),
+8. decodes every state of every trajectory into a 16 x 16 sprite sheet.
 
 Outputs (under --out): manifest.json, <sampler>/<index>/{meta.json,grid.bin,
 step_XXX.jpg}, <sampler>/<index>.jpg (final image), report.json.
@@ -32,6 +36,7 @@ from PIL import Image
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
 
+BICUBIC = getattr(Image, "Resampling", Image).BICUBIC
 CURATED = [1, 4, 19, 33, 44, 56, 58, 60, 63, 71, 75, 85, 87, 92, 123, 125]
 # ImageNet classes recognizable in the curated grid, used to identify the RNG layout.
 EXPECTED = {1: 391, 4: 853, 19: 548, 33: 291, 44: 378, 56: 324, 58: 873, 71: 105,
@@ -147,6 +152,63 @@ def u_grid(model, x_end, P, axes, y, device, bs=4096):
     return torch.cat(out).numpy().reshape([len(a) for a in axes])
 
 
+def load_sit(sit_code, ckpt_name, device):
+    """Original SiT-XL/2 from the SiT codebase at sit_code (models.py, download.py, transport/)."""
+    import importlib.util
+    sys.path.insert(0, sit_code)
+
+    def load(name, file):
+        spec = importlib.util.spec_from_file_location(name, os.path.join(sit_code, file))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
+
+    sit_models = load("sit_models", "models.py")
+    sit_download = load("sit_download", "download.py")
+    from transport import Sampler, create_transport
+
+    state = sit_download.find_model(ckpt_name)
+    state = state.get("ema", state.get("model", state)) if isinstance(state, dict) and ("ema" in state or "model" in state) else state
+    learn_sigma = state["final_layer.linear.weight"].shape[0] == 32
+    model = sit_models.SiT_models["SiT-XL/2"](input_size=32, num_classes=1000, learn_sigma=learn_sigma)
+    model.load_state_dict(state)
+    model = model.to(device).eval()
+    sampler = Sampler(create_transport("Linear", "velocity", None, None, None))
+    return model, sampler, learn_sigma
+
+
+@torch.no_grad()
+def run_sit(model, sampler, z, y, cfg_scale, steps):
+    """States of the SiT probability-flow ODE (dopri5, atol 1e-6, rtol 1e-3) at 250 times."""
+    n = z.shape[0]
+    sample_fn = sampler.sample_ode(sampling_method="dopri5", num_steps=steps, atol=1e-6, rtol=1e-3)
+    zz = torch.cat([z, z], 0)
+    yy = torch.cat([y, torch.full_like(y, 1000)], 0)
+    out = sample_fn(zz, model.forward_with_cfg, y=yy, cfg_scale=cfg_scale)  # (steps, 2n, 4, 32, 32)
+    return out[:, :n].permute(1, 0, 2, 3, 4).contiguous().cpu()  # (n, steps, 4, 32, 32)
+
+
+@torch.no_grad()
+def sprite_sheet(vae, states, device, tile=96, cols=16):
+    """Decode all states (T, 4, 32, 32) into a cols x cols grid of tiles (row-major by step)."""
+    T = states.shape[0]
+    rows = (T + cols - 1) // cols
+    sheet = Image.new("RGB", (cols * tile, rows * tile), "white")
+    for s0 in range(0, T, 50):
+        ims = decode(vae, states[s0:s0 + 50].to(device))
+        for k, im in enumerate(ims):
+            t = s0 + k
+            sheet.paste(Image.fromarray(im).resize((tile, tile), BICUBIC), ((t % cols) * tile, (t // cols) * tile))
+    return sheet
+
+
+@torch.no_grad()
+def u_states(model, states, y, device):
+    """u_theta of the Distance Marching head at given latent states (T, 4, 32, 32) for class y (raw head output)."""
+    yy = torch.full((states.shape[0],), int(y), device=device, dtype=torch.long)
+    return model.noise_level_predictor(states.to(device), yy, False).float().cpu().numpy()
+
+
 def main(args):
     sys.path.insert(0, args.code)
     from diffusers.models import AutoencoderKL
@@ -190,6 +252,20 @@ def main(args):
     manifest = {"indices": CURATED, "labels": labels, "thumb_steps": THUMB_STEPS, "samplers": {},
                 "grid_res": args.res, "model": args.model, "cfg_scale": args.cfg_scale,
                 "num_sampling_steps": args.steps, "layout": {k: best[k] for k in ["world", "n", "predraw", "seed", "order"]}}
+    print("sampling SiT-XL/2 (dopri5)", flush=True)
+    sit_model, sit_sampler, learn_sigma = load_sit(args.sit_code, args.sit_ckpt, device)
+    sit_states = run_sit(sit_model, sit_sampler, z, y, args.cfg_scale, args.steps)
+    del sit_model
+    torch.cuda.empty_cache()
+    report["sit"] = {"learn_sigma": learn_sigma, "states": list(sit_states.shape)}
+    manifest["sit"] = {"model": "SiT-XL/2", "solver": "dopri5", "atol": 1e-6, "rtol": 1e-3}
+    os.makedirs(os.path.join(args.out, "sit"), exist_ok=True)
+    sit_finals = decode(vae, sit_states[:, -1].to(device))
+    for j, k in enumerate(CURATED):
+        Image.fromarray(sit_finals[j]).save(os.path.join(args.out, "sit", f"{k:06d}.png"))
+        sprite_sheet(vae, sit_states[j], device).save(os.path.join(args.out, "sit", f"{k:06d}_sheet.jpg"), quality=82)
+    print("SiT done", flush=True)
+
     report["compare"] = {}
     for sampler, eta in SAMPLERS.items():
         print(f"sampling {sampler} eta={eta}", flush=True)
@@ -217,7 +293,10 @@ def main(args):
             ratio = (S ** 2 / (S ** 2).sum())[:3]
             # equal scale on all three axes (as in the paper's PCA plots): a cube centered
             # on the trajectory whose side covers the largest extent plus a margin
-            lo, hi = C.min(0), C.max(0)
+            Xs = sit_states[j].reshape(args.steps, -1).double().numpy()
+            Cs = (Xs - x_end) @ P  # same axes and origin; the PCA is fitted on X only
+            both = np.concatenate([C, Cs], 0)
+            lo, hi = both.min(0), both.max(0)
             half = (1 + 2 * args.margin) * (hi - lo).max() / 2
             mid = (lo + hi) / 2
             axes = [np.linspace(mid[a] - half, mid[a] + half, args.res) for a in range(3)]
@@ -225,9 +304,10 @@ def main(args):
             d = os.path.join(args.out, sampler, f"{k:06d}")
             os.makedirs(d, exist_ok=True)
             grid.astype(np.float32).tofile(os.path.join(d, "grid.bin"))
+            sprite_sheet(vae, states[j], device).save(os.path.join(d, "sheet.jpg"), quality=82)
             thumbs = decode(vae, states[j, THUMB_STEPS].to(device))
             for s, im in zip(THUMB_STEPS, thumbs):
-                Image.fromarray(im).resize((160, 160), Image.BICUBIC).save(
+                Image.fromarray(im).resize((160, 160), BICUBIC).save(
                     os.path.join(d, f"step_{s:03d}.jpg"), quality=88)
             meta = {
                 "index": k, "label": labels[j], "sampler": sampler, "stepsize": eta,
@@ -236,6 +316,9 @@ def main(args):
                 "grid_res": args.res, "grid_min": float(grid.min()), "grid_max": float(grid.max()),
                 "coords": C.astype(np.float32).round(4).tolist(),
                 "u": us[j].numpy().astype(np.float32).round(4).tolist(),
+                "coords_sit": Cs.astype(np.float32).round(4).tolist(),
+                "u_sit": u_states(model, sit_states[j], labels[j], device).round(4).tolist(),
+                "sheet": {"tile": 96, "cols": 16},
             }
             with open(os.path.join(d, "meta.json"), "w") as f:
                 json.dump(meta, f)
@@ -257,6 +340,8 @@ if __name__ == "__main__":
     p.add_argument("--ref", required=True, help="folder with st/ and gd/ curated PNGs")
     p.add_argument("--out", required=True)
     p.add_argument("--model", default="DM-XL/2")
+    p.add_argument("--sit-code", required=True, help="SiT codebase (models.py, download.py, transport/)")
+    p.add_argument("--sit-ckpt", default="SiT-XL-2-256x256.pt")
     p.add_argument("--cfg-scale", type=float, default=4.0)
     p.add_argument("--steps", type=int, default=250)
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2, 3, 42])
