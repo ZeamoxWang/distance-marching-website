@@ -215,10 +215,12 @@ def main(args):
             sign = np.where(C[0] < 0, -1.0, 1.0)
             P, C = P * sign, C * sign
             ratio = (S ** 2 / (S ** 2).sum())[:3]
+            # equal scale on all three axes (as in the paper's PCA plots): a cube centered
+            # on the trajectory whose side covers the largest extent plus a margin
             lo, hi = C.min(0), C.max(0)
-            span = hi - lo
-            m = args.margin * span
-            axes = [np.linspace(lo[a] - m[a], hi[a] + m[a], args.res) for a in range(3)]
+            half = (1 + 2 * args.margin) * (hi - lo).max() / 2
+            mid = (lo + hi) / 2
+            axes = [np.linspace(mid[a] - half, mid[a] + half, args.res) for a in range(3)]
             grid = u_grid(model, x_end, P, axes, labels[j], device)
             d = os.path.join(args.out, sampler, f"{k:06d}")
             os.makedirs(d, exist_ok=True)

@@ -1,17 +1,17 @@
 # Trajectory data for the interactive viewer on the project page.
 # Replays the RNG of the curated DM-XL/2 ImageNet samples (CFG 4.0, 250 steps;
 # sphere tracing 0.015, gradient descent 0.5), records the 250 latent states,
-# runs PCA per trajectory and evaluates u_theta on a 3D grid in the PCA space.
+# runs PCA per trajectory and evaluates u_theta on a 3D grid (equal axis scales) in the PCA space.
 # Finite single-GPU job (expected < 30 min after the 10.8 GB checkpoint load).
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: zimo-dm-website-traj-2
+  name: zimo-dm-website-traj-3
   namespace: ucsd-ravigroup
   labels:
     owner: zimo
     project: distance-marching
-    run-id: zimo-dm-website-traj-2
+    run-id: zimo-dm-website-traj-3
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 86400  # counts queue time too
@@ -21,7 +21,7 @@ spec:
       labels:
         owner: zimo
         project: distance-marching
-        run-id: zimo-dm-website-traj-2
+        run-id: zimo-dm-website-traj-3
     spec:
       restartPolicy: Never
       affinity:
@@ -39,7 +39,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: RUN_ID
-              value: zimo-dm-website-traj-2
+              value: zimo-dm-website-traj-3
             - name: HF_HOME
               value: /nvme/hf
           command: ["/bin/bash", "-c"]
