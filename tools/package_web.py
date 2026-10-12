@@ -46,10 +46,18 @@ def main(src, dst):
             meta["grid_q"] = [lo, hi]
             meta["coords"] = [[round(v, 3) for v in c] for c in meta["coords"]]
             meta["u"] = [round(-v, 3) for v in meta["u"]]
+            if "coords_sit" in meta:
+                meta["coords_sit"] = [[round(v, 3) for v in c] for c in meta["coords_sit"]]
+                meta["u_sit"] = [round(-v, 3) for v in meta["u_sit"]]
+                shutil.copy(os.path.join(sd, "sheet.jpg"), dd)
             meta["grid_min"], meta["grid_max"] = lo, hi
             json.dump(meta, open(os.path.join(dd, "meta.json"), "w"), separators=(",", ":"))
             for s in manifest["thumb_steps"]:
                 shutil.copy(os.path.join(sd, f"step_{s:03d}.jpg"), dd)
+    if "sit" in manifest:
+        os.makedirs(os.path.join(dst, "sit"))
+        for idx in manifest["indices"]:
+            shutil.copy(os.path.join(src, "sit", f"{idx:06d}_sheet.jpg"), os.path.join(dst, "sit"))
     manifest["class_names"] = {str(l): CLASS_NAMES.get(l, f"class {l}") for l in manifest["labels"]}
     json.dump(manifest, open(os.path.join(dst, "manifest.json"), "w"), indent=1)
     missing = [l for l in manifest["labels"] if l not in CLASS_NAMES]

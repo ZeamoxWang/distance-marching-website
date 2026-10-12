@@ -1,18 +1,18 @@
 # Trajectory data for the interactive viewer on the project page.
 # Replays the RNG of the curated DM-XL/2 ImageNet samples (CFG 4.0, 250 steps;
 # sphere tracing 0.015, gradient descent 0.5), records the 250 latent states,
-# runs the original SiT-XL/2 (dopri5) from the same noise and label,
+# runs the SiT-B/2 flow-matching baseline (400k steps, dopri5) from the same noise and label,
 # runs PCA per trajectory and evaluates u_theta on a 3D grid (equal axis scales) in the PCA space.
 # Finite single-GPU job (expected < 30 min after the 10.8 GB checkpoint load).
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: zimo-dm-website-traj-4
+  name: zimo-dm-website-traj-5
   namespace: ucsd-ravigroup
   labels:
     owner: zimo
     project: distance-marching
-    run-id: zimo-dm-website-traj-4
+    run-id: zimo-dm-website-traj-5
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 86400  # counts queue time too
@@ -22,7 +22,7 @@ spec:
       labels:
         owner: zimo
         project: distance-marching
-        run-id: zimo-dm-website-traj-4
+        run-id: zimo-dm-website-traj-5
     spec:
       restartPolicy: Never
       affinity:
@@ -40,11 +40,9 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: RUN_ID
-              value: zimo-dm-website-traj-4
+              value: zimo-dm-website-traj-5
             - name: HF_HOME
               value: /nvme/hf
-            - name: SIT_PRETRAINED_DIR
-              value: /nvme/pretrained_models
           command: ["/bin/bash", "-c"]
           args:
             - |
@@ -59,7 +57,8 @@ spec:
               (cd /nvme/code && git rev-parse HEAD; cat /nvme/site/COMMIT*) | tee "$RUN/commit.txt"
               python3 /nvme/site/tools/make_trajectories.py \
                 --ckpt /pv/EqM/results/010-EqM-XL-2-Linear-dist-None/checkpoints/0400000.pt --code /nvme/code/imagenet \
-                --sit-code /nvme/sit \
+                --sit-code /nvme/sit --sit-model SiT-B/2 \
+                --sit-ckpt /pv/SiT/results/003-SiT-B-2-Linear-velocity-None/checkpoints/0400000.pt \
                 --ref /pv/distance-marching-runs/website-ref --out "$RUN/out" 2>&1 | tee "$RUN/log.txt"
               echo "TRAJ DONE"
           resources:

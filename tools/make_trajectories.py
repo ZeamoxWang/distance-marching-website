@@ -15,7 +15,7 @@ sphere tracing with step 0.015 and gradient descent with step 0.5), this script
 4. evaluates the distance head u_theta(x, y) on a 3D grid x_end + P z,
 5. decodes the states every 50 steps (0, 50, ..., 200, 249) to thumbnails,
 6. compares the regenerated final images with the curated PNGs,
-7. runs the original SiT-XL/2 (flow matching, dopri5 with 250 output times, CFG 4.0)
+7. runs our SiT-B/2 baseline (flow matching, dopri5 with 250 output times, CFG 4.0)
    from the same initial noise and label, and projects its states onto the same
    PCA axes (fitted on the Distance Marching trajectory only),
 8. decodes every state of every trajectory into a 16 x 16 sprite sheet.
@@ -152,8 +152,8 @@ def u_grid(model, x_end, P, axes, y, device, bs=4096):
     return torch.cat(out).numpy().reshape([len(a) for a in axes])
 
 
-def load_sit(sit_code, ckpt_name, device):
-    """Original SiT-XL/2 from the SiT codebase at sit_code (models.py, download.py, transport/)."""
+def load_sit(sit_code, ckpt_name, model_name, device):
+    """SiT (flow matching) from the SiT codebase at sit_code (models.py, download.py, transport/)."""
     import importlib.util
     sys.path.insert(0, sit_code)
 
@@ -170,7 +170,7 @@ def load_sit(sit_code, ckpt_name, device):
     state = sit_download.find_model(ckpt_name)
     state = state.get("ema", state.get("model", state)) if isinstance(state, dict) and ("ema" in state or "model" in state) else state
     learn_sigma = state["final_layer.linear.weight"].shape[0] == 32
-    model = sit_models.SiT_models["SiT-XL/2"](input_size=32, num_classes=1000, learn_sigma=learn_sigma)
+    model = sit_models.SiT_models[model_name](input_size=32, num_classes=1000, learn_sigma=learn_sigma)
     model.load_state_dict(state)
     model = model.to(device).eval()
     sampler = Sampler(create_transport("Linear", "velocity", None, None, None))
@@ -252,13 +252,13 @@ def main(args):
     manifest = {"indices": CURATED, "labels": labels, "thumb_steps": THUMB_STEPS, "samplers": {},
                 "grid_res": args.res, "model": args.model, "cfg_scale": args.cfg_scale,
                 "num_sampling_steps": args.steps, "layout": {k: best[k] for k in ["world", "n", "predraw", "seed", "order"]}}
-    print("sampling SiT-XL/2 (dopri5)", flush=True)
-    sit_model, sit_sampler, learn_sigma = load_sit(args.sit_code, args.sit_ckpt, device)
+    print(f"sampling {args.sit_model} (dopri5) from {args.sit_ckpt}", flush=True)
+    sit_model, sit_sampler, learn_sigma = load_sit(args.sit_code, args.sit_ckpt, args.sit_model, device)
     sit_states = run_sit(sit_model, sit_sampler, z, y, args.cfg_scale, args.steps)
     del sit_model
     torch.cuda.empty_cache()
     report["sit"] = {"learn_sigma": learn_sigma, "states": list(sit_states.shape)}
-    manifest["sit"] = {"model": "SiT-XL/2", "solver": "dopri5", "atol": 1e-6, "rtol": 1e-3}
+    manifest["sit"] = {"model": args.sit_model, "ckpt": args.sit_ckpt, "solver": "dopri5", "atol": 1e-6, "rtol": 1e-3}
     os.makedirs(os.path.join(args.out, "sit"), exist_ok=True)
     sit_finals = decode(vae, sit_states[:, -1].to(device))
     for j, k in enumerate(CURATED):
@@ -341,7 +341,8 @@ if __name__ == "__main__":
     p.add_argument("--out", required=True)
     p.add_argument("--model", default="DM-XL/2")
     p.add_argument("--sit-code", required=True, help="SiT codebase (models.py, download.py, transport/)")
-    p.add_argument("--sit-ckpt", default="SiT-XL-2-256x256.pt")
+    p.add_argument("--sit-ckpt", required=True, help="SiT checkpoint from SiT's train.py (uses its EMA weights)")
+    p.add_argument("--sit-model", default="SiT-B/2")
     p.add_argument("--cfg-scale", type=float, default=4.0)
     p.add_argument("--steps", type=int, default=250)
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2, 3, 42])
