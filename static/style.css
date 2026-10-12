@@ -472,3 +472,11 @@ h3.sub { margin-top: 48px; font-size: 20px; }
   .tv-legend-note, .tv-note-detail { display: none; }
   .tv-note-overview { max-width: 260px; font-size: 12px; }
 }
+
+.tv-live { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.tv-live figure { margin: 0; }
+.tv-tile { aspect-ratio: 1; border-radius: 6px; background-color: var(--soft); background-repeat: no-repeat; }
+.tv-live figcaption { display: flex; align-items: center; gap: 6px; margin-top: 5px; color: var(--muted); font-size: 12px; }
+.tv-live .tv-swatch { width: 10px; height: 10px; border-radius: 2px; }
+.tv-legend .tv-line { width: 14px; height: 3px; border-radius: 2px; vertical-align: 3px; }
+.tv-legend-gap { margin-top: 4px; }

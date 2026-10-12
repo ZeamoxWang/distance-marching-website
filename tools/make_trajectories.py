@@ -271,7 +271,7 @@ def main(args):
     sit_finals = decode(vae, sit_states[:, -1].to(device))
     for j, k in enumerate(CURATED):
         Image.fromarray(sit_finals[j]).save(os.path.join(args.out, "sit", f"{k:06d}.png"))
-        sprite_sheet(vae, sit_states[j], device).save(os.path.join(args.out, "sit", f"{k:06d}_sheet.jpg"), quality=82)
+        sprite_sheet(vae, sit_states[j], device, tile=80).save(os.path.join(args.out, "sit", f"{k:06d}_sheet.jpg"), quality=72)
     print("SiT done", flush=True)
     # the paper's main-text sequence figure stores every 10% of the 250 states of sample 85
     seq = os.path.join(args.ref, "sit_seq")
@@ -325,7 +325,7 @@ def main(args):
             d = os.path.join(args.out, sampler, f"{k:06d}")
             os.makedirs(d, exist_ok=True)
             grid.astype(np.float32).tofile(os.path.join(d, "grid.bin"))
-            sprite_sheet(vae, states[j], device).save(os.path.join(d, "sheet.jpg"), quality=82)
+            sprite_sheet(vae, states[j], device, tile=80).save(os.path.join(d, "sheet.jpg"), quality=72)
             thumbs = decode(vae, states[j, THUMB_STEPS].to(device))
             for s, im in zip(THUMB_STEPS, thumbs):
                 Image.fromarray(im).resize((160, 160), BICUBIC).save(
@@ -339,7 +339,7 @@ def main(args):
                 "u": us[j].numpy().astype(np.float32).round(4).tolist(),
                 "coords_sit": Cs.astype(np.float32).round(4).tolist(),
                 "u_sit": u_states(model, sit_states[j], labels[j], device).round(4).tolist(),
-                "sheet": {"tile": 96, "cols": 16},
+                "sheet": {"tile": 80, "cols": 16},
             }
             with open(os.path.join(d, "meta.json"), "w") as f:
                 json.dump(meta, f)

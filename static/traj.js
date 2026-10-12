@@ -9,6 +9,9 @@ import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 const ROOT = 'static/traj';
 const SAMPLER_NAME = { st: 'Sphere Tracing', gd: 'Gradient Descent' };
 const SAMPLER_COLOR = { st: '#eb6834', gd: '#2a78d6' };
+const SAMPLER_SHORT = { st: 'Ours (ST)', gd: 'Ours (GD)' };
+// SiT-XL/2 (flow matching): validated against both sampler colors for CVD separation
+const SIT_COLOR = '#b5308f';
 // one-hue ramp for the level sets: light = far from the data, dark = close
 const LEVEL_COLORS = ['#d9d9de', '#c4c4cb', '#a9a9b3', '#8b8b97', '#6b6b78'];
 const LEVEL_FRACTIONS = [0.85, 0.6, 0.38, 0.2, 0.06];
@@ -228,8 +231,13 @@ class Explorer {
     this.meta = meta;
     this.dtGroup = this.buildDetail(meta, new Uint16Array(buf), base);
     this.dtScene.add(this.dtGroup);
+    this.sitSheet = `${ROOT}/sit/${String(index).padStart(6, '0')}_sheet.jpg`;
     this.buildPanel(meta, base);
-    this.legend.innerHTML = `<div class="tv-legend-title">Level sets of u<sub>θ</sub></div>` +
+    this.legend.innerHTML =
+      `<div class="tv-legend-title">Trajectories</div>` +
+      `<div><span class="tv-line" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</div>` +
+      `<div><span class="tv-line" style="background:${SIT_COLOR}"></span>SiT-XL/2 (flow matching)</div>` +
+      `<div class="tv-legend-title tv-legend-gap">Level sets of u<sub>θ</sub></div>` +
       this.levels.map((lv, i) => `<div><span style="background:${LEVEL_COLORS[i]}"></span>u = ${lv.toFixed(1)}</div>`).join('') +
       `<div class="tv-legend-note">darkest: closest to the data manifold</div>`;
     this.legend.hidden = false;
@@ -310,6 +318,18 @@ class Explorer {
     tube.renderOrder = 2;
     g.add(tube);
 
+    // SiT trajectory from the same initial noise, projected on the same axes
+    this.sitPoints = meta.coords_sit.map((c) => new THREE.Vector3(this.toLocal(c[0], 0), this.toLocal(c[1], 1), this.toLocal(c[2], 2)));
+    const sitTube = new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(this.sitPoints, false, 'centripetal'), 600, 0.011, 8, false),
+      new THREE.MeshLambertMaterial({ color: SIT_COLOR }),
+    );
+    sitTube.renderOrder = 2;
+    g.add(sitTube);
+    const sitEnd = new THREE.Mesh(new THREE.SphereGeometry(0.032, 16, 12), new THREE.MeshLambertMaterial({ color: SIT_COLOR }));
+    sitEnd.position.copy(this.sitPoints[this.sitPoints.length - 1]);
+    g.add(sitEnd);
+
     // thumbnails every 50 steps, on a rail above the box with leader lines to their states
     const steps = this.manifest.thumb_steps;
     // order the rail in the direction the path moves along PC1 (the x axis), so that
@@ -342,6 +362,12 @@ class Explorer {
     );
     this.marker.renderOrder = 6;
     g.add(this.marker);
+    this.sitMarker = new THREE.Mesh(
+      new THREE.SphereGeometry(0.05, 20, 16),
+      new THREE.MeshBasicMaterial({ color: 0x0b0b0b }),
+    );
+    this.sitMarker.renderOrder = 6;
+    g.add(this.sitMarker);
     return g;
   }
 
@@ -353,8 +379,11 @@ class Explorer {
       <p class="tv-eyebrow">${SAMPLER_NAME[this.sampler]}, <span class="tv-nocase">η = ${meta.stepsize}</span></p>
       <h3>${name}</h3>
       <p class="tv-meta">ImageNet class ${meta.label} · XL/2 · CFG 4.0 · 250 steps</p>
-      <div class="tv-strip">${steps.map((s) => `
-        <figure data-step="${s}"><img src="${base}/step_${String(s).padStart(3, '0')}.jpg" alt="step ${s}"><figcaption>${s}</figcaption></figure>`).join('')}
+      <div class="tv-live">
+        <figure><div class="tv-tile" data-sheet="${this.sitSheet}"></div>
+          <figcaption><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT-XL/2 (flow matching)</figcaption></figure>
+        <figure><div class="tv-tile" data-sheet="${base}/sheet.jpg"></div>
+          <figcaption><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</figcaption></figure>
       </div>
       <div class="tv-chart">
         <div class="tv-chart-title">Predicted distance  u<sub>θ</sub> along the trajectory</div>
@@ -369,7 +398,9 @@ class Explorer {
       <p class="tv-explain">
         Coordinates: projection onto the first three principal directions of this trajectory's 250 latent states,
         centered at the generated sample (explained variance ${ev}). Shells: level sets of
-        u<sub>θ</sub>(x<sub>end</sub> + Pz) for this class, darker = smaller distance. All three axes share the
+        u<sub>θ</sub>(x<sub>end</sub> + Pz) for this class, darker = smaller distance. SiT: the SiT-XL/2 flow-matching
+        model (dopri5 at 250 output times, as in the paper's comparison) from the same initial noise and class, projected
+        on the same axes (the PCA is fitted on our trajectory only). All three axes share the
         same scale, so the path looks as straight as it is.
       </p>`;
     this.slider = this.panel.querySelector('input[type=range]');
@@ -377,8 +408,8 @@ class Explorer {
     this.slider.addEventListener('input', () => { this.stopPlay(); this.setStep(+this.slider.value); });
     this.playBtn = this.panel.querySelector('.tv-play');
     this.playBtn.addEventListener('click', () => (this.playing ? this.stopPlay() : this.startPlay()));
-    this.panel.querySelectorAll('.tv-strip figure').forEach((f) =>
-      f.addEventListener('click', () => { this.stopPlay(); this.setStep(+f.dataset.step); }));
+    this.tiles = [...this.panel.querySelectorAll('.tv-tile')];
+    this.tiles.forEach((t) => { t.style.backgroundImage = `url(${t.dataset.sheet})`; });
     this.drawChart(meta);
   }
 
@@ -435,9 +466,12 @@ class Explorer {
       dot.setAttribute('cx', cx);
       dot.setAttribute('cy', this.chartY(u));
     }
-    const steps = this.manifest.thumb_steps;
-    const near = steps.reduce((a, b) => (Math.abs(b - s) < Math.abs(a - s) ? b : a));
-    this.panel.querySelectorAll('.tv-strip figure').forEach((f) => f.classList.toggle('active', +f.dataset.step === near));
+    if (this.sitMarker) this.sitMarker.position.copy(this.sitPoints[s]);
+    // live images from the 16 x 16 sprite sheets (row-major by step)
+    const { cols } = this.meta.sheet;
+    const rows = Math.ceil(this.meta.coords.length / cols);
+    const pos = `${((s % cols) / (cols - 1)) * 100}% ${(Math.floor(s / cols) / (rows - 1)) * 100}%`;
+    this.tiles?.forEach((t) => { t.style.backgroundPosition = pos; t.style.backgroundSize = `${cols * 100}% ${rows * 100}%`; });
     this.loop();
   }
 

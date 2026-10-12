@@ -62,6 +62,13 @@
   "seed": 0,
   "order": "zy"
  },
+ "sit": {
+  "model": "SiT-XL/2",
+  "ckpt": "hf:sairights/sit-xl-2-256x256-sde-cfg/pretrained_models/SiT-XL-2-256x256.safetensors",
+  "solver": "dopri5",
+  "atol": 1e-06,
+  "rtol": 0.001
+ },
  "class_names": {
   "391": "coho salmon",
   "853": "thatched roof",
