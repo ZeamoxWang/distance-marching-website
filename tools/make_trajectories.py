@@ -40,45 +40,62 @@ SAMPLERS = {"st": 0.015, "gd": 0.5}
 THUMB_STEPS = [0, 50, 100, 150, 200, 249]
 
 
-def draw(seed, n, predraw, device):
-    g = torch.manual_seed(seed)
-    del g
+def draw(seed, n, predraw, batch, device, order="zy"):
+    """(z, y) of the given batch on one rank: manual_seed, optional pre-draw, then per batch randn + randint."""
+    torch.manual_seed(seed)
     if predraw:  # sample_gd_cfg.py draws one extra (y, z) batch before the loop
         torch.randint(1000, size=(n,), device=device)
         torch.randn(n, 4, 32, 32, device=device)
-    z = torch.randn(n, 4, 32, 32, device=device)
-    y = torch.randint(0, 1000, (n,), device=device)
+    for _ in range(batch + 1):
+        if order == "zy":
+            z = torch.randn(n, 4, 32, 32, device=device)
+            y = torch.randint(0, 1000, (n,), device=device)
+        else:
+            y = torch.randint(0, 1000, (n,), device=device)
+            z = torch.randn(n, 4, 32, 32, device=device)
     return z, y
 
 
-def find_layout(device, global_seed):
+def position(k, world, n):
+    """rank, batch and in-batch position of global sample index k (index = i * W + rank + total)."""
+    b, r = divmod(k, world * n)
+    return r % world, b, r // world
+
+
+def labels_for(layout, device, global_seed):
+    world, n, predraw = layout["world"], layout["n"], layout["predraw"]
+    cache = {}
+    out = {}
+    for k in CURATED:
+        r, b, i = position(k, world, n)
+        if (r, b) not in cache:
+            cache[(r, b)] = draw(global_seed * world + r, n, predraw, b, device, layout.get("order", "zy"))
+        out[k] = cache[(r, b)]
+    return out
+
+
+def find_layout(device, seeds):
     results = []
-    for world in [1, 2, 4, 8]:
-        for n in [16, 32, 64, 128, 256]:
-            if max(CURATED) // world >= n:
-                continue
-            for predraw in [False, True]:
-                cache = {}
-                labels = {}
-                for k in CURATED:
-                    r, i = k % world, k // world
-                    if r not in cache:
-                        cache[r] = draw(global_seed * world + r, n, predraw, device)
-                    labels[k] = int(cache[r][1][i])
-                score = sum(labels[k] == c for k, c in EXPECTED.items())
-                results.append(dict(world=world, n=n, predraw=predraw, score=score, labels=labels))
+    for global_seed in seeds:
+        for world in [1, 2, 3, 4, 6, 8]:
+            for n in [8, 16, 25, 32, 50, 64, 100, 125, 128, 250, 256]:
+                for predraw, order in [(False, "zy"), (True, "zy"), (False, "yz"), (True, "yz")]:
+                    lay = dict(world=world, n=n, predraw=predraw, seed=global_seed, order=order)
+                    zy = labels_for(lay, device, global_seed)
+                    labels = {k: int(zy[k][1][position(k, world, n)[2]]) for k in CURATED}
+                    score = sum(labels[k] == c for k, c in EXPECTED.items())
+                    results.append(dict(lay, score=score, labels=labels))
     results.sort(key=lambda d: -d["score"])
     return results
 
 
-def gather_init(layout, device, global_seed):
-    world, n, predraw = layout["world"], layout["n"], layout["predraw"]
+def gather_init(layout, device):
+    zy = labels_for(layout, device, layout["seed"])
     zs, ys = [], []
     for k in CURATED:
-        r, i = k % world, k // world
-        z, y = draw(global_seed * world + r, n, predraw, device)
-        zs.append(z[i])
-        ys.append(y[i])
+        i = position(k, layout["world"], layout["n"])[2]
+        zs.append(zy[k][0][i])
+        ys.append(zy[k][1][i])
     return torch.stack(zs), torch.stack(ys)
 
 
@@ -139,11 +156,17 @@ def main(args):
     t0 = time.time()
     report = {}
 
-    layouts = find_layout(device, args.global_seed)
+    layouts = find_layout(device, args.seeds)
     best = layouts[0]
-    report["layout_candidates"] = [{k: v for k, v in d.items() if k != "labels"} for d in layouts[:8]]
+    report["layout_candidates"] = [{k: v for k, v in d.items() if k != "labels"} for d in layouts[:10]]
     report["layout"] = best
+    print("top layouts", report["layout_candidates"], flush=True)
     print("best layout", best, flush=True)
+    os.makedirs(args.out, exist_ok=True)
+    if best["score"] < args.min_score:
+        with open(os.path.join(args.out, "report.json"), "w") as f:
+            json.dump(report, f, indent=1)
+        sys.exit(f"no RNG layout reproduces the curated labels (best score {best['score']})")
 
     sd = torch.load(args.ckpt, map_location="cpu", weights_only=False)
     ck_args = sd.get("args")
@@ -162,11 +185,11 @@ def main(args):
         p.requires_grad_(False)
     vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-ema").to(device)
 
-    z, y = gather_init(best, device, args.global_seed)
+    z, y = gather_init(best, device)
     labels = y.tolist()
     manifest = {"indices": CURATED, "labels": labels, "thumb_steps": THUMB_STEPS, "samplers": {},
                 "grid_res": args.res, "model": args.model, "cfg_scale": args.cfg_scale,
-                "num_sampling_steps": args.steps, "layout": {k: best[k] for k in ["world", "n", "predraw"]}}
+                "num_sampling_steps": args.steps, "layout": {k: best[k] for k in ["world", "n", "predraw", "seed", "order"]}}
     report["compare"] = {}
     for sampler, eta in SAMPLERS.items():
         print(f"sampling {sampler} eta={eta}", flush=True)
@@ -234,7 +257,8 @@ if __name__ == "__main__":
     p.add_argument("--model", default="DM-XL/2")
     p.add_argument("--cfg-scale", type=float, default=4.0)
     p.add_argument("--steps", type=int, default=250)
-    p.add_argument("--global-seed", type=int, default=0)
+    p.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2, 3, 42])
+    p.add_argument("--min-score", type=int, default=8, help="matched curated labels needed to proceed")
     p.add_argument("--res", type=int, default=40)
     p.add_argument("--margin", type=float, default=0.15)
     main(p.parse_args())

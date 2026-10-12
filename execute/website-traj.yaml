@@ -6,12 +6,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: zimo-dm-website-traj-1
+  name: zimo-dm-website-traj-2
   namespace: ucsd-ravigroup
   labels:
     owner: zimo
     project: distance-marching
-    run-id: zimo-dm-website-traj-1
+    run-id: zimo-dm-website-traj-2
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 86400  # counts queue time too
@@ -21,7 +21,7 @@ spec:
       labels:
         owner: zimo
         project: distance-marching
-        run-id: zimo-dm-website-traj-1
+        run-id: zimo-dm-website-traj-2
     spec:
       restartPolicy: Never
       affinity:
@@ -39,7 +39,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: RUN_ID
-              value: zimo-dm-website-traj-1
+              value: zimo-dm-website-traj-2
             - name: HF_HOME
               value: /nvme/hf
           command: ["/bin/bash", "-c"]
@@ -52,9 +52,8 @@ spec:
               cp -r /pv/distance-marching /nvme/code
               cp -r /pv/distance-marching-website /nvme/site
               (cd /nvme/code && git rev-parse HEAD; cd /nvme/site && git rev-parse HEAD) | tee "$RUN/commit.txt"
-              cp /pv/EqM/results/010-EqM-XL-2-Linear-dist-None/checkpoints/0400000.pt /nvme/ckpt.pt
               python3 /nvme/site/tools/make_trajectories.py \
-                --ckpt /nvme/ckpt.pt --code /nvme/code/imagenet \
+                --ckpt /pv/EqM/results/010-EqM-XL-2-Linear-dist-None/checkpoints/0400000.pt --code /nvme/code/imagenet \
                 --ref /pv/distance-marching-runs/website-ref --out "$RUN/out" 2>&1 | tee "$RUN/log.txt"
               echo "TRAJ DONE"
           resources:
