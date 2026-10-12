@@ -111,13 +111,13 @@
 
     <div class="cards">
       <div class="card">
-        <h3>Inverse-distance one-step loss</h3>
+        <h3>One-Step Loss</h3>
         $$\frac{\big\lVert \mathbf{x} - u_\theta(\mathbf{x})\,\mathbf{v}_\theta(\mathbf{x}) - \mathbf{s} \big\rVert^2}{\lVert \mathbf{x}-\mathbf{s}\rVert^2 + \epsilon}$$
-        <p>Weighting by the inverse squared distance emphasizes the closest data points and removes the
-          bias toward the data mean.</p>
+        <p>The weight emphasizes data points closer to the query point, which mitigates the bias toward
+          the data mean.</p>
       </div>
       <div class="card">
-        <h3>Directional eikonal loss</h3>
+        <h3>Directional Eikonal Loss</h3>
         $$\Big\lVert \mathbf{v}_\theta(\mathbf{x}) - \frac{\mathbf{x}-\mathbf{s}}{\sqrt{\lVert \mathbf{x}-\mathbf{s}\rVert^2 + c_0}} \Big\rVert^2$$
         <p>Aligns the direction with the normalized offset to the target and fixes the offset of the learned field.</p>
       </div>
