@@ -1,0 +1,83 @@
+{
+ "indices": [
+  1,
+  4,
+  19,
+  33,
+  44,
+  56,
+  58,
+  60,
+  63,
+  71,
+  75,
+  85,
+  87,
+  92,
+  123,
+  125
+ ],
+ "labels": [
+  391,
+  853,
+  548,
+  291,
+  378,
+  324,
+  873,
+  32,
+  976,
+  105,
+  933,
+  261,
+  923,
+  812,
+  84,
+  518
+ ],
+ "thumb_steps": [
+  0,
+  50,
+  100,
+  150,
+  200,
+  249
+ ],
+ "samplers": {
+  "st": {
+   "stepsize": 0.015
+  },
+  "gd": {
+   "stepsize": 0.5
+  }
+ },
+ "grid_res": 40,
+ "model": "DM-XL/2",
+ "cfg_scale": 4.0,
+ "num_sampling_steps": 250,
+ "layout": {
+  "world": 1,
+  "n": 16,
+  "predraw": true,
+  "seed": 0,
+  "order": "zy"
+ },
+ "class_names": {
+  "391": "coho salmon",
+  "853": "thatched roof",
+  "548": "entertainment center",
+  "291": "lion",
+  "378": "capuchin",
+  "324": "cabbage butterfly",
+  "873": "triumphal arch",
+  "32": "tailed frog",
+  "976": "promontory",
+  "105": "koala",
+  "933": "cheeseburger",
+  "261": "keeshond",
+  "923": "plate",
+  "812": "space shuttle",
+  "84": "peacock",
+  "518": "crash helmet"
+ }
+}

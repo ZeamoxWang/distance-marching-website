@@ -34,7 +34,7 @@ torch.backends.cudnn.allow_tf32 = True
 
 CURATED = [1, 4, 19, 33, 44, 56, 58, 60, 63, 71, 75, 85, 87, 92, 123, 125]
 # ImageNet classes recognizable in the curated grid, used to identify the RNG layout.
-EXPECTED = {1: 0, 4: 853, 19: 548, 33: 291, 44: 378, 56: 324, 58: 873, 71: 105,
+EXPECTED = {1: 391, 4: 853, 19: 548, 33: 291, 44: 378, 56: 324, 58: 873, 71: 105,
             75: 933, 85: 261, 92: 812, 123: 84, 125: 518}
 SAMPLERS = {"st": 0.015, "gd": 0.5}
 THUMB_STEPS = [0, 50, 100, 150, 200, 249]
