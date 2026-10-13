@@ -433,13 +433,15 @@ class Explorer {
   geometryTable() {
     const g = this.geom?.latent;
     if (!g) return '';
-    const rows = [['Start → end distance', 'chord'], ['Path length', 'length']];
+    // displacement = |x_end - x_0|; path length = sum of step lengths; the lower value is bold
+    const rows = [['Displacement', 'chord'], ['Path length', 'length']];
+    const cell = (v, other) => `<td class="num">${v < other ? `<b>${v.toFixed(2)}</b>` : v.toFixed(2)}</td>`;
     return `
       <table>
         <thead><tr><th>Latent space (4096-D)</th>
           <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT</th>
           <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</th></tr></thead>
-        <tbody>${rows.map(([label, k]) => `<tr><td>${label}</td><td class="num">${g.sit[k].toFixed(2)}</td><td class="num">${g.ours[k].toFixed(2)}</td></tr>`).join('')}</tbody>
+        <tbody>${rows.map(([label, k]) => `<tr><td>${label}</td>${cell(g.sit[k], g.ours[k])}${cell(g.ours[k], g.sit[k])}</tr>`).join('')}</tbody>
       </table>`;
   }
 
