@@ -83,7 +83,6 @@ class Explorer {
         <div class="tv-loading" hidden>Loading…</div>
         <div class="tv-hover" hidden></div>
         <div class="tv-legend" hidden></div>
-        <div class="tv-geo" hidden></div>
       </div>
       <aside class="tv-panel" hidden></aside>`;
     this.stage = r.querySelector('.tv-stage');
@@ -95,7 +94,6 @@ class Explorer {
     this.loading = r.querySelector('.tv-loading');
     this.hoverLabel = r.querySelector('.tv-hover');
     this.legend = r.querySelector('.tv-legend');
-    this.geoBox = r.querySelector('.tv-geo');
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -184,10 +182,6 @@ class Explorer {
       cam.aspect = w / h;
       cam.updateProjectionMatrix();
     }
-    // on wide stages, shift the 3D view left so the distance table in the top-right corner
-    // does not cover the thumbnail rail
-    if (w / h > 1.2) this.dtCamera.setViewOffset(w, h, Math.round(0.17 * w), 0, w, h);
-    else this.dtCamera.clearViewOffset();
   }
 
   onPointerMove(e) {
@@ -218,7 +212,6 @@ class Explorer {
     this.backBtn.hidden = true;
     this.noteDetail.hidden = true;
     this.legend.hidden = true;
-    this.geoBox.hidden = true;
     this.noteOverview.hidden = false;
     this.root.classList.remove('tv-detail');
     this.resize();
@@ -248,6 +241,7 @@ class Explorer {
     this.sitSheet = `${ROOT}/sit/${String(index).padStart(6, '0')}_sheet.jpg`;
     this.buildPanel(meta, base);
     this.legend.innerHTML =
+      this.geometryTable() +
       `<div class="tv-legend-title">Trajectories</div>` +
       `<div><span class="tv-line" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</div>` +
       `<div><span class="tv-line" style="background:${SIT_COLOR}"></span>SiT-XL/2 (flow matching)</div>` +
@@ -255,8 +249,6 @@ class Explorer {
       this.levels.map((lv, i) => `<div><span style="background:${LEVEL_COLORS[i]}"></span>u = ${lv.toFixed(1)}</div>`).join('') +
       `<div class="tv-legend-note">darkest: closest to the data manifold</div>`;
     this.legend.hidden = false;
-    this.geoBox.innerHTML = this.geometryTable();
-    this.geoBox.hidden = !this.geom;
     this.setStep(meta.coords.length - 1);
     // pull the camera back on narrow (portrait) stages so the thumbnail rail fits
     const aspect = this.stage.clientWidth / Math.max(1, this.stage.clientHeight);
@@ -429,18 +421,17 @@ class Explorer {
     this.drawChart(meta);
   }
 
-  // per-sample trajectory geometry in the latent space: SiT vs ours
+  // per-sample trajectory geometry in the latent space: SiT vs ours (lower value in bold)
   geometryTable() {
     const g = this.geom?.latent;
     if (!g) return '';
-    // displacement = |x_end - x_0|; path length = sum of step lengths; the lower value is bold
     const rows = [['Displacement', 'chord'], ['Path length', 'length']];
     const cell = (v, other) => `<td class="num">${v < other ? `<b>${v.toFixed(2)}</b>` : v.toFixed(2)}</td>`;
     return `
-      <table>
-        <thead><tr><th>Latent space<div class="tv-geo-sub">(4096-D)</div></th>
-          <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT<div class="tv-geo-sub">flow matching</div></th>
-          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>Ours<div class="tv-geo-sub">${SAMPLER_NAME[this.sampler]}</div></th></tr></thead>
+      <table class="tv-geo">
+        <thead><tr><th>Latent (4096-D)</th>
+          <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT</th>
+          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>Ours</th></tr></thead>
         <tbody>${rows.map(([label, k]) => `<tr><td>${label}</td>${cell(g.sit[k], g.ours[k])}${cell(g.ours[k], g.sit[k])}</tr>`).join('')}</tbody>
       </table>`;
   }
