@@ -17,6 +17,11 @@ const LEVEL_COLORS = ['#d9d9de', '#c4c4cb', '#a9a9b3', '#8b8b97', '#6b6b78'];
 const LEVEL_FRACTIONS = [0.85, 0.6, 0.38, 0.2, 0.06];
 
 let manifestPromise = null;
+let metricsPromise = null;
+function loadMetrics() {
+  metricsPromise ??= fetch(`${ROOT}/metrics.json`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  return metricsPromise;
+}
 function loadManifest() {
   manifestPromise ??= fetch(`${ROOT}/manifest.json`).then((r) => r.json());
   return manifestPromise;
@@ -220,8 +225,9 @@ class Explorer {
     this.loading.hidden = false;
     this.noteOverview.hidden = true;
     const base = `${ROOT}/${this.sampler}/${String(index).padStart(6, '0')}`;
-    const [meta, buf] = await Promise.all([
+    const [meta, metrics, buf] = await Promise.all([
       fetch(`${base}/meta.json`).then((r) => r.json()),
+      loadMetrics(),
       fetch(`${base}/grid.bin`).then((r) => r.arrayBuffer()),
     ]);
     if (this.dtGroup) {
@@ -231,6 +237,7 @@ class Explorer {
     this.meta = meta;
     this.dtGroup = this.buildDetail(meta, new Uint16Array(buf), base);
     this.dtScene.add(this.dtGroup);
+    this.geom = metrics?.[this.sampler]?.[String(index)] ?? null;
     this.sitSheet = `${ROOT}/sit/${String(index).padStart(6, '0')}_sheet.jpg`;
     this.buildPanel(meta, base);
     this.legend.innerHTML =
@@ -395,6 +402,7 @@ class Explorer {
         <input type="range" min="0" max="${meta.coords.length - 1}" value="${meta.coords.length - 1}" aria-label="Step">
         <span class="tv-readout"></span>
       </div>
+      ${this.geometryTable()}
       <p class="tv-explain">
         Coordinates: projection onto the first three principal directions of this trajectory's 250 latent states,
         centered at the generated sample (explained variance ${ev}). Shells: level sets of
@@ -411,6 +419,34 @@ class Explorer {
     this.tiles = [...this.panel.querySelectorAll('.tv-tile')];
     this.tiles.forEach((t) => { t.style.backgroundImage = `url(${t.dataset.sheet})`; });
     this.drawChart(meta);
+  }
+
+  // per-sample trajectory geometry: SiT vs ours, in the latent space and in the 3D PCA space
+  geometryTable() {
+    const g = this.geom;
+    if (!g) return '';
+    const ours = SAMPLER_SHORT[this.sampler];
+    const rows = [
+      ['Start → end distance', 'chord', 2],
+      ['Path length', 'length', 2],
+      ['Mean curvature', 'kappa', 4],
+    ];
+    const block = (title, d) => `
+        <tr class="tv-geo-sec"><th colspan="3">${title}</th></tr>
+        ${rows.map(([label, k, dp]) => `<tr><td>${label}</td><td class="num">${d.sit[k].toFixed(dp)}</td><td class="num">${d.ours[k].toFixed(dp)}</td></tr>`).join('')}`;
+    return `
+      <div class="tv-geo">
+        <div class="tv-chart-title">Trajectory geometry</div>
+        <table>
+          <thead><tr><th></th>
+            <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT</th>
+            <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${ours}</th></tr></thead>
+          <tbody>${block('Latent space (4096-D)', g.latent)}${block('3D PCA space', g.pca3)}</tbody>
+        </table>
+        <p class="tv-geo-note">Mean curvature: total turning angle divided by path length after resampling the path at
+          equal arc length. In the 3D PCA space the axes are fitted on our trajectory, so the projected SiT path loses
+          the part of its displacement outside these axes.</p>
+      </div>`;
   }
 
   drawChart(meta) {
