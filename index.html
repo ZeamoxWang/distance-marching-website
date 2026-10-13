@@ -17,12 +17,12 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
           onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
-  <link rel="stylesheet" href="static/style.css?v=19">
+  <link rel="stylesheet" href="static/style.css?v=21">
   <script type="importmap">
     {"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
                  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="static/traj.js?v=19"></script>
+  <script type="module" src="static/traj.js?v=21"></script>
 </head>
 <body>
 
@@ -259,8 +259,8 @@
         <table>
           <thead><tr><th></th><th class="num">Steps ↓</th><th class="num">FID ↓</th><th class="num">sFID ↓</th><th class="num">IS ↑</th></tr></thead>
           <tbody>
-            <tr><td>Original GD</td><td class="num">250.0</td><td class="num"><b>32.16</b></td><td class="num">7.52</td><td class="num">45.16</td></tr>
-            <tr class="ours"><td>Adaptive GD</td><td class="num"><b>175.8</b></td><td class="num">32.73</td><td class="num"><b>6.70</b></td><td class="num"><b>45.86</b></td></tr>
+            <tr><td>Original gradient descent</td><td class="num">250.0</td><td class="num"><b>32.16</b></td><td class="num">7.52</td><td class="num">45.16</td></tr>
+            <tr class="ours"><td>Adaptive gradient descent</td><td class="num"><b>175.8</b></td><td class="num">32.73</td><td class="num"><b>6.70</b></td><td class="num"><b>45.86</b></td></tr>
           </tbody>
         </table>
       </div>

@@ -498,3 +498,5 @@ h3.sub { margin-top: 48px; font-size: 20px; }
 .tv-geo .tv-swatch { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 2px; }
 
 .tv-geo td b { color: var(--text); font-weight: 600; }
+.tv-geo thead th { vertical-align: bottom; }
+.tv-geo-sub { color: var(--muted); font-size: 11px; font-weight: 400; }

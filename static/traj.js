@@ -9,7 +9,7 @@ import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 const ROOT = 'static/traj';
 const SAMPLER_NAME = { st: 'Sphere Tracing', gd: 'Gradient Descent' };
 const SAMPLER_COLOR = { st: '#eb6834', gd: '#2a78d6' };
-const SAMPLER_SHORT = { st: 'Ours (ST)', gd: 'Ours (GD)' };
+const SAMPLER_SHORT = { st: 'Ours (Sphere Tracing)', gd: 'Ours (Gradient Descent)' };
 // SiT-XL/2 (flow matching): validated against both sampler colors for CVD separation
 const SIT_COLOR = '#b5308f';
 // one-hue ramp for the level sets: light = far from the data, dark = close
@@ -438,9 +438,9 @@ class Explorer {
     const cell = (v, other) => `<td class="num">${v < other ? `<b>${v.toFixed(2)}</b>` : v.toFixed(2)}</td>`;
     return `
       <table>
-        <thead><tr><th>Latent space (4096-D)</th>
-          <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT</th>
-          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</th></tr></thead>
+        <thead><tr><th>Latent space<div class="tv-geo-sub">(4096-D)</div></th>
+          <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT<div class="tv-geo-sub">flow matching</div></th>
+          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>Ours<div class="tv-geo-sub">${SAMPLER_NAME[this.sampler]}</div></th></tr></thead>
         <tbody>${rows.map(([label, k]) => `<tr><td>${label}</td>${cell(g.sit[k], g.ours[k])}${cell(g.ours[k], g.sit[k])}</tr>`).join('')}</tbody>
       </table>`;
   }
