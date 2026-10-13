@@ -83,6 +83,7 @@ class Explorer {
         <div class="tv-loading" hidden>Loading…</div>
         <div class="tv-hover" hidden></div>
         <div class="tv-legend" hidden></div>
+        <div class="tv-geo" hidden></div>
       </div>
       <aside class="tv-panel" hidden></aside>`;
     this.stage = r.querySelector('.tv-stage');
@@ -94,6 +95,7 @@ class Explorer {
     this.loading = r.querySelector('.tv-loading');
     this.hoverLabel = r.querySelector('.tv-hover');
     this.legend = r.querySelector('.tv-legend');
+    this.geoBox = r.querySelector('.tv-geo');
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -182,6 +184,10 @@ class Explorer {
       cam.aspect = w / h;
       cam.updateProjectionMatrix();
     }
+    // on wide stages, shift the 3D view left so the distance table in the top-right corner
+    // does not cover the thumbnail rail
+    if (w / h > 1.2) this.dtCamera.setViewOffset(w, h, Math.round(0.17 * w), 0, w, h);
+    else this.dtCamera.clearViewOffset();
   }
 
   onPointerMove(e) {
@@ -212,6 +218,7 @@ class Explorer {
     this.backBtn.hidden = true;
     this.noteDetail.hidden = true;
     this.legend.hidden = true;
+    this.geoBox.hidden = true;
     this.noteOverview.hidden = false;
     this.root.classList.remove('tv-detail');
     this.resize();
@@ -248,6 +255,8 @@ class Explorer {
       this.levels.map((lv, i) => `<div><span style="background:${LEVEL_COLORS[i]}"></span>u = ${lv.toFixed(1)}</div>`).join('') +
       `<div class="tv-legend-note">darkest: closest to the data manifold</div>`;
     this.legend.hidden = false;
+    this.geoBox.innerHTML = this.geometryTable();
+    this.geoBox.hidden = !this.geom;
     this.setStep(meta.coords.length - 1);
     // pull the camera back on narrow (portrait) stages so the thumbnail rail fits
     const aspect = this.stage.clientWidth / Math.max(1, this.stage.clientHeight);
@@ -308,7 +317,7 @@ class Explorer {
     box.position.set(-0.025, -0.025, -0.025);
     g.add(box);
     const ev = meta.explained_variance_ratio.map((r) => (r * 100).toFixed(r < 0.001 ? 3 : r < 0.1 ? 2 : 1));
-    [['PC1', ev[0], [0, -1.12, 1.08]], ['PC2', ev[1], [-1.12, 0, 1.08]], ['PC3', ev[2], [1.08, -1.12, 0]]].forEach(([n, e, p]) => {
+    [['PC1', ev[0], [0, -1.12, 1.08]], ['PC2', ev[1], [-0.8, 0.12, 1.08]], ['PC3', ev[2], [1.08, -1.12, 0]]].forEach(([n, e, p]) => {
       const s = textSprite(`${n} · ${e}%`);
       s.position.set(...p);
       g.add(s);
@@ -350,8 +359,8 @@ class Explorer {
       const tex = this.loader.load(`${base}/step_${String(s).padStart(3, '0')}.jpg`);
       tex.colorSpace = THREE.SRGBColorSpace;
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-      sp.scale.set(0.36, 0.36, 1);
-      sp.position.set(dir * (-1.25 + (2.5 * n) / (steps.length - 1)), 1.5, 0);
+      sp.scale.set(0.33, 0.33, 1);
+      sp.position.set(dir * (-1.05 + (2.1 * n) / (steps.length - 1)), 1.5, 0);
       sp.renderOrder = 5;
       g.add(sp);
       const anchor = sp.position.clone().add(new THREE.Vector3(0, -0.19, 0));
@@ -402,7 +411,6 @@ class Explorer {
         <input type="range" min="0" max="${meta.coords.length - 1}" value="${meta.coords.length - 1}" aria-label="Step">
         <span class="tv-readout"></span>
       </div>
-      ${this.geometryTable()}
       <p class="tv-explain">
         Coordinates: projection onto the first three principal directions of this trajectory's 250 latent states,
         centered at the generated sample (explained variance ${ev}). Shells: level sets of
@@ -421,32 +429,18 @@ class Explorer {
     this.drawChart(meta);
   }
 
-  // per-sample trajectory geometry: SiT vs ours, in the latent space and in the 3D PCA space
+  // per-sample trajectory geometry in the latent space: SiT vs ours
   geometryTable() {
-    const g = this.geom;
+    const g = this.geom?.latent;
     if (!g) return '';
-    const ours = SAMPLER_SHORT[this.sampler];
-    const rows = [
-      ['Start → end distance', 'chord', 2],
-      ['Path length', 'length', 2],
-      ['Mean curvature', 'kappa', 4],
-    ];
-    const block = (title, d) => `
-        <tr class="tv-geo-sec"><th colspan="3">${title}</th></tr>
-        ${rows.map(([label, k, dp]) => `<tr><td>${label}</td><td class="num">${d.sit[k].toFixed(dp)}</td><td class="num">${d.ours[k].toFixed(dp)}</td></tr>`).join('')}`;
+    const rows = [['Start → end distance', 'chord'], ['Path length', 'length']];
     return `
-      <div class="tv-geo">
-        <div class="tv-chart-title">Trajectory geometry</div>
-        <table>
-          <thead><tr><th></th>
-            <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT</th>
-            <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${ours}</th></tr></thead>
-          <tbody>${block('Latent space (4096-D)', g.latent)}${block('3D PCA space', g.pca3)}</tbody>
-        </table>
-        <p class="tv-geo-note">Mean curvature: total turning angle divided by path length after resampling the path at
-          equal arc length. In the 3D PCA space the axes are fitted on our trajectory, so the projected SiT path loses
-          the part of its displacement outside these axes.</p>
-      </div>`;
+      <table>
+        <thead><tr><th>Latent space (4096-D)</th>
+          <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT</th>
+          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</th></tr></thead>
+        <tbody>${rows.map(([label, k]) => `<tr><td>${label}</td><td class="num">${g.sit[k].toFixed(2)}</td><td class="num">${g.ours[k].toFixed(2)}</td></tr>`).join('')}</tbody>
+      </table>`;
   }
 
   drawChart(meta) {

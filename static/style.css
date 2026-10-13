@@ -481,10 +481,18 @@ h3.sub { margin-top: 48px; font-size: 20px; }
 .tv-legend .tv-line { width: 14px; height: 3px; border-radius: 2px; vertical-align: 3px; }
 .tv-legend-gap { margin-top: 4px; }
 
-.tv-geo { margin: 4px 0 14px; }
-.tv-geo table { font-size: 12.5px; }
-.tv-geo th, .tv-geo td { padding: 4px 6px; }
-.tv-geo thead th { white-space: nowrap; }
+.tv-geo {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  pointer-events: none;
+}
+
+.tv-geo[hidden] { display: none; }
+.tv-geo table { width: auto; font-size: 12px; }
+.tv-geo th, .tv-geo td { padding: 3px 6px; white-space: nowrap; }
+.tv-geo thead th:first-child { color: var(--text); font-weight: 600; }
 .tv-geo .tv-swatch { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 2px; }
-.tv-geo-sec th { padding-top: 10px; color: var(--text); font-size: 12px; font-weight: 600; border-bottom-color: var(--line); }
-.tv-geo-note { margin: 6px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.5; }
