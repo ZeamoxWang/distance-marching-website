@@ -77,8 +77,7 @@ class Explorer {
       <div class="tv-stage">
         <canvas></canvas>
         <div class="tv-note tv-note-overview">
-          <b>Not the actual data manifold.</b> The 128 samples are only arranged on a sphere for browsing.
-          <b>Select an image to view its trajectory.</b>
+          Arranged on a sphere for browsing only. <b>Select an image to view its trajectory.</b>
         </div>
         <button class="tv-back" type="button" hidden>← All samples</button>
         <div class="tv-note tv-note-detail" hidden>Drag to rotate · scroll to zoom</div>
@@ -260,8 +259,8 @@ class Explorer {
     this.legend.innerHTML =
       this.geometryTable() +
       `<div class="tv-legend-title">Trajectories</div>` +
-      `<div><span class="tv-line" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</div>` +
-      (meta.coords_fm ? `<div><span class="tv-line" style="background:${FM_COLOR}"></span>${FM_NAME}</div>` : '') +
+      `<div><span class="tv-line" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}<small class="tv-t">without time input</small></div>` +
+      (meta.coords_fm ? `<div><span class="tv-line" style="background:${FM_COLOR}"></span>${FM_NAME}<small class="tv-t">with time input, same U-Net</small></div>` : '') +
       `<div class="tv-legend-title tv-legend-gap">Level sets of u<sub>θ</sub></div>` +
       this.levels.map((lv, i) => `<div><span style="background:${LEVEL_COLORS[i]}"></span>u = ${lv.toFixed(1)}</div>`).join('') +
       `<div class="tv-legend-note">darkest: closest to the data manifold</div>`;
@@ -427,12 +426,9 @@ class Explorer {
         <div class="tv-tip" hidden></div>
       </div>
       <p class="tv-explain">
-        Coordinates: projection onto the first three principal directions of this trajectory's ${T} states in pixel
-        space (3 × 32 × 32), centered at the generated sample (explained variance ${ev}). Shells: level sets of
-        u<sub>θ</sub>(x<sub>end</sub> + Pz), darker = smaller distance. Flow matching: our flow-matching model
-        with the same U-Net (time input, FID 2.36), integrated with dopri5 from the same initial noise and shown at
-        ${T} uniform times, projected on the same axes (the PCA is fitted on our trajectory only). All three axes
-        share the same scale, so the path looks as straight as it is.
+        Axes: top three principal directions of our trajectory in pixel space (${ev}), equal scale, origin at the
+        sample. Shells: level sets of u<sub>θ</sub>, darker = closer. Flow matching: same U-Net with time input
+        (FID 2.36), dopri5 from the same noise.
       </p>`;
     this.scrub.innerHTML = `
       <button type="button" class="tv-play" aria-label="Play">▶</button>
@@ -457,8 +453,8 @@ class Explorer {
     return `
       <table class="tv-geo">
         <thead><tr><th>Pixel space (3072-D)</th>
-          <th class="num"><span class="tv-swatch" style="background:${FM_COLOR}"></span>Flow matching</th>
-          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>Ours</th></tr></thead>
+          <th class="num"><span class="tv-swatch" style="background:${FM_COLOR}"></span>FM, with <i>t</i></th>
+          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>Ours, w/o <i>t</i></th></tr></thead>
         <tbody>${rows.map(([label, k]) => `<tr><td>${label}</td>${cell(g.fm[k], g.ours[k])}${cell(g.ours[k], g.fm[k])}</tr>`).join('')}</tbody>
       </table>`;
   }

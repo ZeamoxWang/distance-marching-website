@@ -75,8 +75,7 @@ class Explorer {
       <div class="tv-stage">
         <canvas></canvas>
         <div class="tv-note tv-note-overview">
-          <b>Not the actual data manifold.</b> The 16 samples are only arranged on a sphere for browsing.
-          <b>Select an image to view its trajectory.</b>
+          Arranged on a sphere for browsing only. <b>Select an image to view its trajectory.</b>
         </div>
         <button class="tv-back" type="button" hidden>← All samples</button>
         <div class="tv-note tv-note-detail" hidden>Drag to rotate · scroll to zoom</div>
@@ -246,8 +245,8 @@ class Explorer {
     this.legend.innerHTML =
       this.geometryTable() +
       `<div class="tv-legend-title">Trajectories</div>` +
-      `<div><span class="tv-line" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</div>` +
-      `<div><span class="tv-line" style="background:${SIT_COLOR}"></span>SiT-XL/2 (flow matching)</div>` +
+      `<div><span class="tv-line" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}<small class="tv-t">without time input</small></div>` +
+      `<div><span class="tv-line" style="background:${SIT_COLOR}"></span>SiT-XL/2 (flow matching)<small class="tv-t">with time input</small></div>` +
       `<div class="tv-legend-title tv-legend-gap">Level sets of u<sub>θ</sub></div>` +
       this.levels.map((lv, i) => `<div><span style="background:${LEVEL_COLORS[i]}"></span>u = ${lv.toFixed(1)}</div>`).join('') +
       `<div class="tv-legend-note">darkest: closest to the data manifold</div>`;
@@ -403,12 +402,8 @@ class Explorer {
         <div class="tv-tip" hidden></div>
       </div>
       <p class="tv-explain">
-        Coordinates: projection onto the first three principal directions of this trajectory's 250 latent states,
-        centered at the generated sample (explained variance ${ev}). Shells: level sets of
-        u<sub>θ</sub>(x<sub>end</sub> + Pz) for this class, darker = smaller distance. SiT: the SiT-XL/2 flow-matching
-        model (dopri5 at 250 output times, as in the paper's comparison) from the same initial noise and class, projected
-        on the same axes (the PCA is fitted on our trajectory only). All three axes share the
-        same scale, so the path looks as straight as it is.
+        Axes: top three principal directions of our trajectory (${ev}), equal scale, origin at the sample.
+        Shells: level sets of u<sub>θ</sub>, darker = closer. SiT-XL/2: dopri5 from the same noise and class.
       </p>`;
     this.scrub.innerHTML = `
       <button type="button" class="tv-play" aria-label="Play">▶</button>
@@ -433,8 +428,8 @@ class Explorer {
     return `
       <table class="tv-geo">
         <thead><tr><th>Latent (4096-D)</th>
-          <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT</th>
-          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>Ours</th></tr></thead>
+          <th class="num"><span class="tv-swatch" style="background:${SIT_COLOR}"></span>SiT, with <i>t</i></th>
+          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>Ours, w/o <i>t</i></th></tr></thead>
         <tbody>${rows.map(([label, k]) => `<tr><td>${label}</td>${cell(g.sit[k], g.ours[k])}${cell(g.ours[k], g.sit[k])}</tr>`).join('')}</tbody>
       </table>`;
   }

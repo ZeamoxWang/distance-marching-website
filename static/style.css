@@ -62,6 +62,13 @@ h1 {
 .authors span { white-space: nowrap; }
 .authors span:not(:last-child)::after { content: ","; }
 
+.tagline {
+  margin: -14px auto 24px;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 18px;
+}
+
 .affiliation {
   margin: 4px 0 0;
   color: var(--muted);
@@ -503,6 +510,7 @@ h3.sub { margin-top: 48px; font-size: 20px; }
 .tv-live .tv-swatch { width: 10px; height: 10px; border-radius: 2px; }
 .tv-legend .tv-line { width: 14px; height: 3px; border-radius: 2px; vertical-align: 3px; }
 .tv-legend-gap { margin-top: 4px; }
+.tv-legend .tv-t { display: block; margin: -1px 0 2px 20px; font-size: 10.5px; }
 
 .tv-legend .tv-geo { width: auto; margin-bottom: 8px; font-size: 11px; }
 .tv-legend .tv-geo th, .tv-legend .tv-geo td { padding: 2px 4px; white-space: nowrap; }
