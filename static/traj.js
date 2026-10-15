@@ -76,13 +76,14 @@ class Explorer {
         <canvas></canvas>
         <div class="tv-note tv-note-overview">
           <b>Not the actual data manifold.</b> The 16 samples are only arranged on a sphere for browsing.
-          Select an image to view its trajectory.
+          <b>Select an image to view its trajectory.</b>
         </div>
         <button class="tv-back" type="button" hidden>← All samples</button>
         <div class="tv-note tv-note-detail" hidden>Drag to rotate · scroll to zoom</div>
         <div class="tv-loading" hidden>Loading…</div>
         <div class="tv-hover" hidden></div>
         <div class="tv-legend" hidden></div>
+        <div class="tv-scrub" hidden></div>
       </div>
       <aside class="tv-panel" hidden></aside>`;
     this.stage = r.querySelector('.tv-stage');
@@ -94,6 +95,7 @@ class Explorer {
     this.loading = r.querySelector('.tv-loading');
     this.hoverLabel = r.querySelector('.tv-hover');
     this.legend = r.querySelector('.tv-legend');
+    this.scrub = r.querySelector('.tv-scrub');
 
     this.renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -174,8 +176,8 @@ class Explorer {
   }
 
   resize() {
-    const w = this.stage.clientWidth;
-    const h = this.stage.clientHeight;
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
     if (!w || !h) return;
     this.renderer.setSize(w, h, false);
     for (const cam of [this.ovCamera, this.dtCamera]) {
@@ -212,6 +214,7 @@ class Explorer {
     this.backBtn.hidden = true;
     this.noteDetail.hidden = true;
     this.legend.hidden = true;
+    this.scrub.hidden = true;
     this.noteOverview.hidden = false;
     this.root.classList.remove('tv-detail');
     this.resize();
@@ -251,7 +254,7 @@ class Explorer {
     this.legend.hidden = false;
     this.setStep(meta.coords.length - 1);
     // pull the camera back on narrow (portrait) stages so the thumbnail rail fits
-    const aspect = this.stage.clientWidth / Math.max(1, this.stage.clientHeight);
+    const aspect = this.canvas.clientWidth / Math.max(1, this.canvas.clientHeight);
     this.dtCamera.position.set(3.1, 1.5, 4.6).multiplyScalar(Math.max(1, 1.25 / aspect));
     this.controls.target.set(0, 0.3, 0);
     this.controls.enabled = true;
@@ -259,6 +262,7 @@ class Explorer {
     this.loading.hidden = true;
     this.backBtn.hidden = false;
     this.noteDetail.hidden = false;
+    this.scrub.hidden = false;
     this.panel.hidden = false;
     this.root.classList.add('tv-detail');
     this.resize();
@@ -398,11 +402,6 @@ class Explorer {
         <svg viewBox="0 0 300 120" preserveAspectRatio="none" role="img" aria-label="Predicted distance over sampling steps"></svg>
         <div class="tv-tip" hidden></div>
       </div>
-      <div class="tv-scrub">
-        <button type="button" class="tv-play" aria-label="Play">▶</button>
-        <input type="range" min="0" max="${meta.coords.length - 1}" value="${meta.coords.length - 1}" aria-label="Step">
-        <span class="tv-readout"></span>
-      </div>
       <p class="tv-explain">
         Coordinates: projection onto the first three principal directions of this trajectory's 250 latent states,
         centered at the generated sample (explained variance ${ev}). Shells: level sets of
@@ -411,10 +410,14 @@ class Explorer {
         on the same axes (the PCA is fitted on our trajectory only). All three axes share the
         same scale, so the path looks as straight as it is.
       </p>`;
-    this.slider = this.panel.querySelector('input[type=range]');
-    this.readout = this.panel.querySelector('.tv-readout');
+    this.scrub.innerHTML = `
+      <button type="button" class="tv-play" aria-label="Play">▶</button>
+      <input type="range" min="0" max="${meta.coords.length - 1}" value="${meta.coords.length - 1}" aria-label="Step">
+      <span class="tv-readout"></span>`;
+    this.slider = this.scrub.querySelector('input[type=range]');
+    this.readout = this.scrub.querySelector('.tv-readout');
     this.slider.addEventListener('input', () => { this.stopPlay(); this.setStep(+this.slider.value); });
-    this.playBtn = this.panel.querySelector('.tv-play');
+    this.playBtn = this.scrub.querySelector('.tv-play');
     this.playBtn.addEventListener('click', () => (this.playing ? this.stopPlay() : this.startPlay()));
     this.tiles = [...this.panel.querySelectorAll('.tv-tile')];
     this.tiles.forEach((t) => { t.style.backgroundImage = `url(${t.dataset.sheet})`; });

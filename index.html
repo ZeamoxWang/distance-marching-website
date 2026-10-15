@@ -17,12 +17,12 @@
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
           onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true}, {left: '\\(', right: '\\)', display: false}]});"></script>
-  <link rel="stylesheet" href="static/style.css?v=22">
+  <link rel="stylesheet" href="static/style.css?v=23">
   <script type="importmap">
     {"imports": {"three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
                  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
-  <script type="module" src="static/traj.js?v=22"></script>
+  <script type="module" src="static/traj.js?v=23"></script>
 </head>
 <body>
 
@@ -82,6 +82,27 @@
       our model is the only one without time input that remains competitive with time-conditioned
       models across datasets and architectures.
     </p>
+  </section>
+
+  <section>
+    <h2>Explore the trajectories</h2>
+    <p class="lead">Curated ImageNet 256×256 samples from our XL/2 model with CFG scale 4.0, applied to \(\mathbf{v}_\theta\) in gradient descent and to \(u_\theta \mathbf{v}_\theta\) in sphere tracing.</p>
+    <p>
+      Each of the 16 curated samples is generated from a fixed random seed and a class label in 250 steps.
+      Select a sample to follow its trajectory: we project its 250 latent states onto their first three
+      principal directions (as in the appendix of the paper, extended from two to three) and show level sets of
+      the predicted distance \(u_\theta\) around the path, with the decoded image every 50 steps.
+    </p>
+    <div class="tv-pair wide-block">
+      <div>
+        <div class="tv-title"><span class="tv-swatch" style="background:#eb6834"></span>Sphere Tracing</div>
+        <div class="tv" data-traj-viewer="st"></div>
+      </div>
+      <div>
+        <div class="tv-title"><span class="tv-swatch" style="background:#2a78d6"></span>Gradient Descent</div>
+        <div class="tv" data-traj-viewer="gd"></div>
+      </div>
+    </div>
   </section>
 
   <section>
@@ -193,25 +214,6 @@
 
   <section>
     <h2>Samples</h2>
-    <p class="lead">Curated ImageNet 256×256 samples from our XL/2 model with CFG scale 4.0, applied to \(\mathbf{v}_\theta\) in gradient descent and to \(u_\theta \mathbf{v}_\theta\) in sphere tracing.</p>
-    <h3 class="sub">Explore the trajectories</h3>
-    <p>
-      Each of the 16 curated samples is generated from a fixed random seed and a class label in 250 steps.
-      Select a sample to follow its trajectory: we project its 250 latent states onto their first three
-      principal directions (as in the appendix of the paper, extended from two to three) and show level sets of
-      the predicted distance \(u_\theta\) around the path, with the decoded image every 50 steps.
-    </p>
-    <div class="tv-pair wide-block">
-      <div>
-        <div class="tv-title"><span class="tv-swatch" style="background:#eb6834"></span>Sphere Tracing</div>
-        <div class="tv" data-traj-viewer="st"></div>
-      </div>
-      <div>
-        <div class="tv-title"><span class="tv-swatch" style="background:#2a78d6"></span>Gradient Descent</div>
-        <div class="tv" data-traj-viewer="gd"></div>
-      </div>
-    </div>
-
     <p class="lead">Uncurated samples for time- and class-unconditional generation on CIFAR-10.</p>
     <figure class="narrow">
       <img class="pixelated" src="static/images/cifar10_samples.png" alt="Uncurated CIFAR-10 samples">
