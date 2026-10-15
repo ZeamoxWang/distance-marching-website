@@ -215,28 +215,13 @@
   </section>
 
   <section>
-    <h2>Samples</h2>
-    <p class="lead">Uncurated samples for time- and class-unconditional generation on CIFAR-10.</p>
-    <figure class="narrow">
-      <img class="pixelated" src="static/images/cifar10_samples.png" alt="Uncurated CIFAR-10 samples">
-    </figure>
+    <h2>More sphere tracing samples on CIFAR-10</h2>
     <div class="tv-pair wide-block">
       <div>
         <div class="tv-title"><span class="tv-swatch" style="background:#eb6834"></span>Sphere Tracing</div>
         <div class="tv" data-traj-cifar-viewer="st"></div>
       </div>
-      <div>
-        <div class="tv-title"><span class="tv-swatch" style="background:#2a78d6"></span>Gradient Descent</div>
-        <div class="tv" data-traj-cifar-viewer="gd"></div>
-      </div>
     </div>
-    <p class="note">
-      Sphere tracing (\(\eta = 0.031\)) gives the 128 uncurated samples above; gradient descent (\(\eta = 0.46\))
-      starts from the same initial noise. Both use 250 steps. Select a sample to follow its trajectory in pixel space,
-      projected onto the first three principal directions of its states, with level sets of the predicted distance
-      \(u_\theta\) around the path. Magenta: our flow-matching model with the same U-Net (with time input), from the
-      same initial noise and projected on the same axes.
-    </p>
   </section>
 
   <section>
