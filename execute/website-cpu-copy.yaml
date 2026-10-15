@@ -3,12 +3,12 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: zimo-dm-website-copy-1
+  name: zimo-dm-website-copy-2
   namespace: ucsd-ravigroup
   labels:
     owner: zimo
     project: distance-marching
-    run-id: zimo-dm-website-copy-1
+    run-id: zimo-dm-website-copy-2
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 10800
@@ -18,7 +18,7 @@ spec:
       labels:
         owner: zimo
         project: distance-marching
-        run-id: zimo-dm-website-copy-1
+        run-id: zimo-dm-website-copy-2
     spec:
       restartPolicy: Never
       containers:

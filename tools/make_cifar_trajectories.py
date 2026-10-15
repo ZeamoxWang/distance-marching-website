@@ -15,7 +15,11 @@ saved by torchvision's save_image with nrow=8) of the released checkpoint
 4. per trajectory: PCA of its 251 states in pixel space (3072-D), first three
    principal directions P, origin at the generated sample x_end, equal axis
    scales; u_theta on a 3D grid x_end + P z; u_theta along the path; all
-   states as a 16 x 16 sprite sheet of 32 px tiles.
+   states as a 16 x 16 sprite sheet of 32 px tiles,
+5. with --fm-states (from make_cifar_fm.py, same initial noise): projects the
+   flow-matching trajectory on the same axes (the PCA is fitted on ours only,
+   the cube covers both), and stores the displacement |x_end - x_0| and the
+   path length (sum of segment lengths) of both trajectories in pixel space.
 
 Outputs (under --out): manifest.json, report.json, <sampler>/final.png (8 x 16
 atlas, 32 px, no padding), <sampler>/<index>/{meta.json,grid.bin,sheet.png}.
@@ -74,6 +78,7 @@ def main(args):
     ref = np.asarray(Image.open(args.ref).convert("RGB"))
     report["ref_shape"] = list(ref.shape)
 
+    fm = np.load(args.fm_states).astype(np.float64) if args.fm_states else None  # (251, n, 3, 32, 32)
     # 1) which old snapshot is the paper grid?
     found = []
     for pat in args.search:
@@ -99,9 +104,12 @@ def main(args):
     net = model.model
     solver = DistanceMarchingSolver(velocity_model=model)
 
-    torch.manual_seed(args.seed)
-    np.random.seed(args.seed)
-    x0 = torch.randn((args.n, 3, 32, 32), dtype=torch.float32, device=device)
+    if args.x0:  # initial noise of another GPU model (cuda_randn.py)
+        x0 = torch.from_numpy(np.load(args.x0)).to(device, torch.float32)
+    else:
+        torch.manual_seed(args.seed)
+        np.random.seed(args.seed)
+        x0 = torch.randn((args.n, 3, 32, 32), dtype=torch.float32, device=device)
 
     manifest = {"n": args.n, "samplers": {}, "steps": args.steps, "grid_res": args.res,
                 "seed": args.seed, "ckpt": os.path.basename(args.ckpt), "sheet": {"tile": 32, "cols": 16}}
@@ -131,7 +139,12 @@ def main(args):
             sign = np.where(C[0] < 0, -1.0, 1.0)
             P, C = P * sign, C * sign
             ratio = (S ** 2 / (S ** 2).sum())[:3]
-            lo, hi = C.min(0), C.max(0)
+            both = C
+            if fm is not None:
+                Xf = fm[:, j].reshape(fm.shape[0], -1)
+                Cf = (Xf - x_end) @ P
+                both = np.concatenate([C, Cf], 0)
+            lo, hi = both.min(0), both.max(0)
             half = (1 + 2 * args.margin) * (hi - lo).max() / 2
             mid = (lo + hi) / 2
             axes = [np.linspace(mid[a] - half, mid[a] + half, args.res) for a in range(3)]
@@ -151,6 +164,12 @@ def main(args):
                     "axes": [[float(a[0]), float(a[-1])] for a in axes],
                     "grid_res": args.res, "coords": C.astype(np.float32).round(4).tolist(),
                     "u": U[:, j].numpy().round(4).tolist()}
+            if fm is not None:
+                geo = lambda Y: {"chord": float(np.linalg.norm(Y[-1] - Y[0])),
+                                 "length": float(np.linalg.norm(np.diff(Y, axis=0), axis=1).sum())}
+                meta["coords_fm"] = Cf.astype(np.float32).round(4).tolist()
+                meta["u_fm"] = u_of(net, torch.from_numpy(Xf).to(device, torch.float32).reshape(-1, 3, 32, 32)).numpy().round(4).tolist()
+                meta["geo"] = {"ours": geo(X), "fm": geo(Xf)}
             with open(os.path.join(d, "meta.json"), "w") as f:
                 json.dump(meta, f)
         print(sampler, "done", time.time() - t0, flush=True)
@@ -169,8 +188,10 @@ if __name__ == "__main__":
     p.add_argument("--ckpt", required=True)
     p.add_argument("--ref", required=True, help="the paper's original 16 x 8 sample grid (PNG)")
     p.add_argument("--search", nargs="*", default=[], help="glob patterns of old snapshot PNGs")
+    p.add_argument("--fm-states", default="", help="fm_states.npy from make_cifar_fm.py")
     p.add_argument("--out", required=True)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--x0", default="", help="initial noise (.npy) from cuda_randn.py instead of torch.randn")
     p.add_argument("--n", type=int, default=128)
     p.add_argument("--steps", type=int, default=250)
     p.add_argument("--res", type=int, default=32)

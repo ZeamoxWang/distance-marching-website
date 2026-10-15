@@ -23,8 +23,8 @@
                  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
   <script type="module" src="static/traj.js?v=24"></script>
-  <link rel="stylesheet" href="static/cifar.css?v=1">
-  <script type="module" src="static/traj_cifar.js?v=1"></script>
+  <link rel="stylesheet" href="static/cifar.css?v=2">
+  <script type="module" src="static/traj_cifar.js?v=2"></script>
 </head>
 <body>
 
@@ -225,11 +225,17 @@
         <div class="tv-title"><span class="tv-swatch" style="background:#eb6834"></span>Sphere Tracing</div>
         <div class="tv" data-traj-cifar-viewer="st"></div>
       </div>
+      <div>
+        <div class="tv-title"><span class="tv-swatch" style="background:#2a78d6"></span>Gradient Descent</div>
+        <div class="tv" data-traj-cifar-viewer="gd"></div>
+      </div>
     </div>
     <p class="note">
-      The same 128 uncurated samples (sphere tracing, \(\eta = 0.031\), 250 steps). Select a sample to follow its
-      trajectory in pixel space, projected onto the first three principal directions of its states, with level
-      sets of the predicted distance \(u_\theta\) around the path.
+      Sphere tracing (\(\eta = 0.031\)) gives the 128 uncurated samples above; gradient descent (\(\eta = 0.46\))
+      starts from the same initial noise. Both use 250 steps. Select a sample to follow its trajectory in pixel space,
+      projected onto the first three principal directions of its states, with level sets of the predicted distance
+      \(u_\theta\) around the path. Magenta: our flow-matching model with the same U-Net (with time input), from the
+      same initial noise and projected on the same axes.
     </p>
   </section>
 

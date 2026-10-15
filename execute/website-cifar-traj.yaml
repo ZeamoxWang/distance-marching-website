@@ -1,19 +1,23 @@
-# Trajectory data for the CIFAR-10 viewer on the project page.
+# Trajectory data for the CIFAR-10 viewers on the project page.
+# Step 1 (make_cifar_fm.py): our flow-matching baseline (same U-Net, checkpoint-1899
+# of output_dir/20251113_072621baseline, FID 2.36 with midpoint/EDM nfe 50) from the
+# same initial noise, dense dopri5 trajectory. Step 2: Distance Marching.
 # Replays the first sampling batch (seed 0, 128 images) of the released CIFAR-10
 # checkpoint for sphere tracing (0.031) and gradient descent (0.46), 250 steps,
 # compares it with the paper's uncurated grid, and computes per-trajectory PCA,
 # u_theta grids and sprite sheets. The script and the paper grid come from the
-# ConfigMap zimo-dm-website-cifar-traj-1. Runs on an A10 (as the paper run) because
-# the initial noise from CUDA randn depends on the GPU model. Finite single-GPU job (expected < 15 min).
+# ConfigMap zimo-dm-website-cifar-traj-8. The initial noise from CUDA randn depends on the
+# GPU model; the paper batch was drawn on an A10, which cuda_randn.py emulates on any GPU
+# (A10s were all busy for traj-6). Finite single-GPU job (expected < 15 min).
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: zimo-dm-website-cifar-traj-5
+  name: zimo-dm-website-cifar-traj-8
   namespace: ucsd-ravigroup
   labels:
     owner: zimo
     project: distance-marching
-    run-id: zimo-dm-website-cifar-traj-5
+    run-id: zimo-dm-website-cifar-traj-8
 spec:
   backoffLimit: 2  # admission rejections on broken GPU nodes
   activeDeadlineSeconds: 86400  # counts queue time too
@@ -23,12 +27,9 @@ spec:
       labels:
         owner: zimo
         project: distance-marching
-        run-id: zimo-dm-website-cifar-traj-5
+        run-id: zimo-dm-website-cifar-traj-8
     spec:
       restartPolicy: Never
-      # CUDA randn depends on the GPU's SM count: the paper's batch was drawn on an A10
-      nodeSelector:
-        nvidia.com/gpu.product: NVIDIA-A10
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -46,7 +47,7 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: RUN_ID
-              value: zimo-dm-website-cifar-traj-5
+              value: zimo-dm-website-cifar-traj-8
           command: ["/bin/bash", "-c"]
           args:
             - |
@@ -56,15 +57,19 @@ spec:
               mkdir -p "$RUN"
               cp -r /pv/distance-marching /nvme/code
               (cd /nvme/code && git rev-parse HEAD) | tee "$RUN/commit.txt"
-              cp /site/make_cifar_trajectories.py /site/paper_grid.png "$RUN/"
+              cp /site/*.py /site/paper_grid.png "$RUN/"
+              export PYTHONDONTWRITEBYTECODE=1
+              mkdir -p "$RUN/out"
+              python3 "$RUN/cuda_randn.py" --out "$RUN/out/x0_a10.npy" 2>&1 | tee "$RUN/log_randn.txt"
+              (cd /pv/flow_matching/examples/image && python3 "$RUN/make_cifar_fm.py" \
+                --code /pv/flow_matching/examples/image \
+                --ckpt /pv/flow_matching/output_dir/20251113_072621baseline/checkpoint-1899.pth \
+                --ref /pv/flow_matching/output_dir/gt_2.36/snapshots/1900_0.png \
+                --x0 "$RUN/out/x0_a10.npy" --out "$RUN/out") 2>&1 | tee "$RUN/log_fm.txt"
               cd /nvme/code/cifar10
               python3 "$RUN/make_cifar_trajectories.py" --code /nvme/code/cifar10 \
                 --ckpt /pv/flow_matching/output_dir/no_ot_best/checkpoint-1809.pth \
-                --ref "$RUN/paper_grid.png" \
-                --search '/pv/flow_matching/output_test/*/snapshots/*.png' \
-                         '/pv/flow_matching/output_test/*/*/snapshots/*.png' \
-                         '/pv/flow_matching/output_dir/no_ot_best/snapshots/*.png' \
-                         '/pv/distance-marching-runs/zimo-dm-cifar10-*/*/snapshots/*.png' \
+                --ref "$RUN/paper_grid.png" --fm-states "$RUN/out/fm_states.npy" --x0 "$RUN/out/x0_a10.npy" \
                 --out "$RUN/out" 2>&1 | tee "$RUN/log.txt"
               echo "CIFAR TRAJ DONE"
           resources:
@@ -93,4 +98,4 @@ spec:
           emptyDir: {}
         - name: site
           configMap:
-            name: zimo-dm-website-cifar-traj-1
+            name: zimo-dm-website-cifar-traj-8

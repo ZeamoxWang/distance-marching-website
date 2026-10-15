@@ -2,7 +2,9 @@
 // paper (unconditional, 250 steps): the samples arranged on a sphere (overview),
 // and for a selected sample its trajectory in pixel space projected onto the
 // first three principal directions, with level sets of the predicted distance
-// u_theta. Adapted from traj.js (the ImageNet viewer), which it does not touch.
+// u_theta, and our flow-matching baseline (same U-Net, time-conditioned, dopri5)
+// from the same initial noise, projected on the same axes. Adapted from traj.js
+// (the ImageNet viewer), which it does not touch.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
@@ -12,6 +14,9 @@ const SAMPLER_NAME = { st: 'Sphere Tracing', gd: 'Gradient Descent' };
 const SAMPLER_COLOR = { st: '#eb6834', gd: '#2a78d6' };
 const SAMPLER_SHORT = { st: 'Ours (Sphere Tracing)', gd: 'Ours (Gradient Descent)' };
 const THUMB_STEPS = [0, 50, 100, 150, 200, 250];
+// flow-matching baseline: the same magenta as SiT in the ImageNet viewer (validated against both sampler colors)
+const FM_COLOR = '#b5308f';
+const FM_NAME = 'Flow matching';
 const RADIUS = 1.4;
 const CARD = 0.2;
 // one-hue ramp for the level sets: light = far from the data, dark = close
@@ -248,12 +253,15 @@ class Explorer {
       disposeTree(this.dtGroup);
     }
     this.meta = meta;
+    this.fmSheet = `${ROOT}/fm/${String(index).padStart(3, '0')}_sheet.webp`;
     this.dtGroup = this.buildDetail(meta, new Uint16Array(buf), base);
     this.dtScene.add(this.dtGroup);
     this.buildPanel(meta, base);
     this.legend.innerHTML =
-      `<div class="tv-legend-title">Trajectory</div>` +
+      this.geometryTable() +
+      `<div class="tv-legend-title">Trajectories</div>` +
       `<div><span class="tv-line" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</div>` +
+      (meta.coords_fm ? `<div><span class="tv-line" style="background:${FM_COLOR}"></span>${FM_NAME}</div>` : '') +
       `<div class="tv-legend-title tv-legend-gap">Level sets of u<sub>θ</sub></div>` +
       this.levels.map((lv, i) => `<div><span style="background:${LEVEL_COLORS[i]}"></span>u = ${lv.toFixed(1)}</div>`).join('') +
       `<div class="tv-legend-note">darkest: closest to the data manifold</div>`;
@@ -336,6 +344,21 @@ class Explorer {
     tube.renderOrder = 2;
     g.add(tube);
 
+    // flow-matching trajectory from the same initial noise, projected on the same axes
+    this.fmPoints = null;
+    if (meta.coords_fm) {
+      this.fmPoints = meta.coords_fm.map((c) => new THREE.Vector3(this.toLocal(c[0], 0), this.toLocal(c[1], 1), this.toLocal(c[2], 2)));
+      const fmTube = new THREE.Mesh(
+        new THREE.TubeGeometry(new THREE.CatmullRomCurve3(this.fmPoints, false, 'centripetal'), 600, 0.011, 8, false),
+        new THREE.MeshLambertMaterial({ color: FM_COLOR }),
+      );
+      fmTube.renderOrder = 2;
+      g.add(fmTube);
+      const fmEnd = new THREE.Mesh(new THREE.SphereGeometry(0.032, 16, 12), new THREE.MeshLambertMaterial({ color: FM_COLOR }));
+      fmEnd.position.copy(this.fmPoints[this.fmPoints.length - 1]);
+      g.add(fmEnd);
+    }
+
     // thumbnails every 50 steps, on a rail above the box with leader lines to their states
     const steps = THUMB_STEPS;
     const { cols } = meta.sheet;
@@ -376,6 +399,12 @@ class Explorer {
     );
     this.marker.renderOrder = 6;
     g.add(this.marker);
+    this.fmMarker = null;
+    if (this.fmPoints) {
+      this.fmMarker = new THREE.Mesh(new THREE.SphereGeometry(0.05, 20, 16), new THREE.MeshBasicMaterial({ color: 0x0b0b0b }));
+      this.fmMarker.renderOrder = 6;
+      g.add(this.fmMarker);
+    }
     return g;
   }
 
@@ -386,7 +415,9 @@ class Explorer {
       <p class="tv-eyebrow">${SAMPLER_NAME[this.sampler]}, <span class="tv-nocase">η = ${meta.stepsize}</span></p>
       <h3>Sample ${meta.index + 1} <span class="tv-nocase">of ${this.manifest.n}</span></h3>
       <p class="tv-meta">CIFAR-10 · unconditional · ${T - 1} steps</p>
-      <div class="tv-live tv-live-one">
+      <div class="tv-live${meta.coords_fm ? '' : ' tv-live-one'}">
+        ${meta.coords_fm ? `<figure><div class="tv-tile tv-tile-pixel" data-sheet="${this.fmSheet}"></div>
+          <figcaption><span class="tv-swatch" style="background:${FM_COLOR}"></span>${FM_NAME}</figcaption></figure>` : ''}
         <figure><div class="tv-tile tv-tile-pixel" data-sheet="${base}/sheet.webp"></div>
           <figcaption><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>${SAMPLER_SHORT[this.sampler]}</figcaption></figure>
       </div>
@@ -398,8 +429,10 @@ class Explorer {
       <p class="tv-explain">
         Coordinates: projection onto the first three principal directions of this trajectory's ${T} states in pixel
         space (3 × 32 × 32), centered at the generated sample (explained variance ${ev}). Shells: level sets of
-        u<sub>θ</sub>(x<sub>end</sub> + Pz), darker = smaller distance. All three axes share the
-        same scale, so the path looks as straight as it is.
+        u<sub>θ</sub>(x<sub>end</sub> + Pz), darker = smaller distance. Flow matching: our flow-matching model
+        with the same U-Net (time input, FID 2.36), integrated with dopri5 from the same initial noise and shown at
+        ${T} uniform times, projected on the same axes (the PCA is fitted on our trajectory only). All three axes
+        share the same scale, so the path looks as straight as it is.
       </p>`;
     this.scrub.innerHTML = `
       <button type="button" class="tv-play" aria-label="Play">▶</button>
@@ -413,6 +446,21 @@ class Explorer {
     this.tiles = [...this.panel.querySelectorAll('.tv-tile')];
     this.tiles.forEach((t) => { t.style.backgroundImage = `url(${t.dataset.sheet})`; });
     this.drawChart(meta);
+  }
+
+  // per-sample trajectory geometry in pixel space: flow matching vs ours (lower value in bold)
+  geometryTable() {
+    const g = this.meta.geo;
+    if (!g) return '';
+    const rows = [['Displacement', 'chord'], ['Path length', 'length']];
+    const cell = (v, other) => `<td class="num">${v < other ? `<b>${v.toFixed(2)}</b>` : v.toFixed(2)}</td>`;
+    return `
+      <table class="tv-geo">
+        <thead><tr><th>Pixel space (3072-D)</th>
+          <th class="num"><span class="tv-swatch" style="background:${FM_COLOR}"></span>Flow matching</th>
+          <th class="num"><span class="tv-swatch" style="background:${SAMPLER_COLOR[this.sampler]}"></span>Ours</th></tr></thead>
+        <tbody>${rows.map(([label, k]) => `<tr><td>${label}</td>${cell(g.fm[k], g.ours[k])}${cell(g.ours[k], g.fm[k])}</tr>`).join('')}</tbody>
+      </table>`;
   }
 
   drawChart(meta) {
@@ -458,6 +506,7 @@ class Explorer {
   setStep(s) {
     this.step = s;
     if (this.marker) this.marker.position.copy(this.points[s]);
+    if (this.fmMarker) this.fmMarker.position.copy(this.fmPoints[s]);
     if (this.slider) this.slider.value = s;
     const u = this.meta.u[s];
     if (this.readout) this.readout.textContent = `step ${s} · u = ${u.toFixed(2)}`;

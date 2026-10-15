@@ -3,6 +3,9 @@
  "samplers": {
   "st": {
    "stepsize": 0.031
+  },
+  "gd": {
+   "stepsize": 0.46
   }
  },
  "steps": 250,
@@ -12,5 +15,21 @@
  "sheet": {
   "tile": 32,
   "cols": 16
+ },
+ "fm": {
+  "ckpt": "output_dir/20251113_072621baseline/checkpoint-1899.pth",
+  "solver": "dopri5",
+  "atol": 1e-05,
+  "rtol": 1e-05,
+  "report": {
+   "ckpt_epoch": 1899,
+   "midpoint_vs_gt_2.36_snapshot_mae": 0.009625410661101341,
+   "time_interval": [
+    0.012345679012345734,
+    1.0
+   ],
+   "dopri5_vs_midpoint_final_mae": 0.26277413964271545,
+   "nfe_dopri5": 234
+  }
  }
 }

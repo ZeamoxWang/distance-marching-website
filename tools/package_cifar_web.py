@@ -3,8 +3,8 @@ Package the output of make_cifar_trajectories.py for the CIFAR-10 viewer:
 quantize each u_theta grid to uint16 (range stored in meta.json as grid_q),
 round the coordinates, re-encode the sprite sheets as WebP (the 251 states of
 a trajectory, mostly noise, are ~330 KB as PNG and ~80-120 KB as WebP), and
-copy the final-image atlas. Only sphere tracing by default: the paper's
-uncurated CIFAR-10 grid shows the sphere-tracing samples.
+copy the final-image atlases; the flow-matching sprite sheets (shared by both
+samplers) go to fm/<index>_sheet.webp.
 The CIFAR-10 distance head outputs u_theta directly (no sign flip, unlike ImageNet).
 
 Usage: python3 tools/package_cifar_web.py <job out dir> static/traj_cifar [samplers...]
@@ -18,7 +18,7 @@ import numpy as np
 from PIL import Image
 
 
-def main(src, dst, samplers=("st",), quality=88):
+def main(src, dst, samplers=("st", "gd"), quality=88):
     mf = os.path.join(src, "manifest.json")
     if os.path.exists(mf):
         manifest = json.load(open(mf))
@@ -48,9 +48,17 @@ def main(src, dst, samplers=("st",), quality=88):
             json.dump(meta, open(os.path.join(dd, "meta.json"), "w"), separators=(",", ":"))
             Image.open(os.path.join(sd, "sheet.png")).convert("RGB").save(
                 os.path.join(dd, "sheet.webp"), "WEBP", quality=quality, method=6)
+    if os.path.isdir(os.path.join(src, "fm")):
+        os.makedirs(os.path.join(dst, "fm"))
+        for j in range(manifest["n"]):
+            Image.open(os.path.join(src, "fm", f"{j:03d}_sheet.png")).convert("RGB").save(
+                os.path.join(dst, "fm", f"{j:03d}_sheet.webp"), "WEBP", quality=quality, method=6)
+        rep = os.path.join(src, "fm_report.json")
+        manifest["fm"] = {"ckpt": "output_dir/20251113_072621baseline/checkpoint-1899.pth", "solver": "dopri5",
+                          "atol": 1e-5, "rtol": 1e-5, "report": json.load(open(rep)) if os.path.exists(rep) else None}
     json.dump(manifest, open(os.path.join(dst, "manifest.json"), "w"), indent=1)
     print("packaged", dst)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2], tuple(sys.argv[3:]) or ("st",))
+    main(sys.argv[1], sys.argv[2], tuple(sys.argv[3:]) or ("st", "gd"))
