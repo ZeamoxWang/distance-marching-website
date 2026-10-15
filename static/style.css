@@ -132,6 +132,7 @@ p { margin: 0 0 18px; }
 
 .lead { color: var(--muted); font-size: 15px; margin-top: 8px; }
 .note { color: var(--muted); font-size: 13px; margin-top: 10px; }
+.tv-pair + .note { margin-top: -24px; }
 
 figure { margin: 36px 0; }
 
