@@ -1,0 +1,16 @@
+{
+ "n": 128,
+ "samplers": {
+  "st": {
+   "stepsize": 0.031
+  }
+ },
+ "steps": 250,
+ "grid_res": 32,
+ "seed": 0,
+ "ckpt": "checkpoint-1809.pth",
+ "sheet": {
+  "tile": 32,
+  "cols": 16
+ }
+}

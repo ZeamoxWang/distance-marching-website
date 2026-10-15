@@ -23,6 +23,8 @@
                  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}
   </script>
   <script type="module" src="static/traj.js?v=24"></script>
+  <link rel="stylesheet" href="static/cifar.css?v=1">
+  <script type="module" src="static/traj_cifar.js?v=1"></script>
 </head>
 <body>
 
@@ -218,6 +220,17 @@
     <figure class="narrow">
       <img class="pixelated" src="static/images/cifar10_samples.png" alt="Uncurated CIFAR-10 samples">
     </figure>
+    <div class="tv-pair wide-block">
+      <div>
+        <div class="tv-title"><span class="tv-swatch" style="background:#eb6834"></span>Sphere Tracing</div>
+        <div class="tv" data-traj-cifar-viewer="st"></div>
+      </div>
+    </div>
+    <p class="note">
+      The same 128 uncurated samples (sphere tracing, \(\eta = 0.031\), 250 steps). Select a sample to follow its
+      trajectory in pixel space, projected onto the first three principal directions of its states, with level
+      sets of the predicted distance \(u_\theta\) around the path.
+    </p>
   </section>
 
   <section>

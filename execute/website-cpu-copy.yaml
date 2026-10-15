@@ -1,0 +1,37 @@
+# Short CPU-only helper pod for copying website data between the PV and this Mac
+# (kubectl cp / exec). No GPU; ends on its own after at most 3 hours.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: zimo-dm-website-copy-1
+  namespace: ucsd-ravigroup
+  labels:
+    owner: zimo
+    project: distance-marching
+    run-id: zimo-dm-website-copy-1
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 10800
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        owner: zimo
+        project: distance-marching
+        run-id: zimo-dm-website-copy-1
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: copy
+          image: zeamoxwang/flow_matching@sha256:641b50a68367997b27435125300f0934992c29564962f148b6e12f870a0c53c8
+          command: ["/bin/bash", "-c", "sleep 10500"]
+          resources:
+            requests: {cpu: "2", memory: 4Gi}
+            limits: {cpu: "2", memory: 4Gi}
+          volumeMounts:
+            - name: pv
+              mountPath: /pv
+      volumes:
+        - name: pv
+          persistentVolumeClaim:
+            claimName: zmw-vol-haosu

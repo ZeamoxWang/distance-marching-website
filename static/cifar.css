@@ -1,0 +1,3 @@
+/* CIFAR-10 trajectory viewer (static/traj_cifar.js); builds on the .tv styles of style.css */
+.tv-live.tv-live-one { grid-template-columns: 1fr; max-width: 180px; }
+.tv-tile.tv-tile-pixel { image-rendering: pixelated; border-radius: 4px; }

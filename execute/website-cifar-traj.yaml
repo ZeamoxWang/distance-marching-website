@@ -1,0 +1,96 @@
+# Trajectory data for the CIFAR-10 viewer on the project page.
+# Replays the first sampling batch (seed 0, 128 images) of the released CIFAR-10
+# checkpoint for sphere tracing (0.031) and gradient descent (0.46), 250 steps,
+# compares it with the paper's uncurated grid, and computes per-trajectory PCA,
+# u_theta grids and sprite sheets. The script and the paper grid come from the
+# ConfigMap zimo-dm-website-cifar-traj-1. Runs on an A10 (as the paper run) because
+# the initial noise from CUDA randn depends on the GPU model. Finite single-GPU job (expected < 15 min).
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: zimo-dm-website-cifar-traj-5
+  namespace: ucsd-ravigroup
+  labels:
+    owner: zimo
+    project: distance-marching
+    run-id: zimo-dm-website-cifar-traj-5
+spec:
+  backoffLimit: 2  # admission rejections on broken GPU nodes
+  activeDeadlineSeconds: 86400  # counts queue time too
+  ttlSecondsAfterFinished: 172800
+  template:
+    metadata:
+      labels:
+        owner: zimo
+        project: distance-marching
+        run-id: zimo-dm-website-cifar-traj-5
+    spec:
+      restartPolicy: Never
+      # CUDA randn depends on the GPU's SM count: the paper's batch was drawn on an A10
+      nodeSelector:
+        nvidia.com/gpu.product: NVIDIA-A10
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values:
+                      - gp-engine.usd.edu
+                      - k8s-haosu-20.sdsc.optiputer.net  # traj-1 rejected: "GPU is lost"
+                      - nautilus-ext-gpu01.fullerton.edu  # traj-2 rejected: "GPU is lost"
+      containers:
+        - name: compute
+          image: zeamoxwang/flow_matching@sha256:641b50a68367997b27435125300f0934992c29564962f148b6e12f870a0c53c8
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: RUN_ID
+              value: zimo-dm-website-cifar-traj-5
+          command: ["/bin/bash", "-c"]
+          args:
+            - |
+              set -euo pipefail
+              nvidia-smi
+              RUN=/pv/distance-marching-runs/$RUN_ID
+              mkdir -p "$RUN"
+              cp -r /pv/distance-marching /nvme/code
+              (cd /nvme/code && git rev-parse HEAD) | tee "$RUN/commit.txt"
+              cp /site/make_cifar_trajectories.py /site/paper_grid.png "$RUN/"
+              cd /nvme/code/cifar10
+              python3 "$RUN/make_cifar_trajectories.py" --code /nvme/code/cifar10 \
+                --ckpt /pv/flow_matching/output_dir/no_ot_best/checkpoint-1809.pth \
+                --ref "$RUN/paper_grid.png" \
+                --search '/pv/flow_matching/output_test/*/snapshots/*.png' \
+                         '/pv/flow_matching/output_test/*/*/snapshots/*.png' \
+                         '/pv/flow_matching/output_dir/no_ot_best/snapshots/*.png' \
+                         '/pv/distance-marching-runs/zimo-dm-cifar10-*/*/snapshots/*.png' \
+                --out "$RUN/out" 2>&1 | tee "$RUN/log.txt"
+              echo "CIFAR TRAJ DONE"
+          resources:
+            requests:
+              cpu: "4"
+              memory: 24Gi
+              ephemeral-storage: 20Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: "4"
+              memory: 24Gi
+              ephemeral-storage: 20Gi
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: pv
+              mountPath: /pv
+            - name: nvme
+              mountPath: /nvme
+            - name: site
+              mountPath: /site
+      volumes:
+        - name: pv
+          persistentVolumeClaim:
+            claimName: zmw-vol-haosu
+        - name: nvme
+          emptyDir: {}
+        - name: site
+          configMap:
+            name: zimo-dm-website-cifar-traj-1
