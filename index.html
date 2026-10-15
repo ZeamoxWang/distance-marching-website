@@ -75,25 +75,12 @@
   </figure>
 
   <section>
-    <h2>Abstract</h2>
+    <h2>TL;DR</h2>
     <p>
-      Modern generative models based on diffusion or flow matching transport noise toward the data
-      manifold, without representing the data manifold explicitly. We propose Distance Marching that
-      explores an alternative design by explicitly modeling a distance field of the data manifold.
-      A distance field offers a geometric view of generation as a descent process toward the data
-      manifold using only the current position. The negative gradient of the distance field provides
-      the direction, and the distance value can optionally determine the step size.
-      However, sparse training data in high-dimensional space make it difficult to identify the closest
-      points on the data manifold needed to train the distance field. To address this challenge, we
-      design new loss functions that emphasize denoising targets from closer data points. Our analysis
-      shows that, without time input, emphasizing closer targets reduces denoising ambiguity and the
-      bias toward the data mean. This distance-field perspective naturally motivates two principled
-      deterministic samplers, showing fast convergence in inference.
-      As a result, our model is the only one without time input that remains competitive with
-      time-conditioned models across datasets and architectures. Moreover, our distance prediction is
-      also helpful for early stopping during sampling and for out-of-distribution detection.
-      We hope distance-field modeling can open a promising direction for exploring generative modeling
-      from a geometric perspective.
+      We explicitly model a distance field of the data manifold and generate by descending it,
+      without time input. Our loss functions emphasize denoising targets from closer data points, and
+      our model is the only one without time input that remains competitive with time-conditioned
+      models across datasets and architectures.
     </p>
   </section>
 
