@@ -70,8 +70,8 @@
   <figure class="wide teaser">
     <img src="static/images/teaser.png" alt="Sampling trajectories of Distance Marching versus flow matching on a distance field over the data manifold">
     <figcaption>
-      Middle row: outputs after 20% of the sampling steps. Ours, without time input, already shows the object;
-      flow matching, biased toward the data mean, is still noisy.
+      Middle row: outputs after 20% of the sampling steps. Ours, without time input, already shows the object.
+      Flow matching, biased toward the data mean, is still noisy.
     </figcaption>
   </figure>
 
@@ -79,8 +79,8 @@
     <h2>TL;DR</h2>
     <p>
       We model a distance field of the data manifold and generate by descending it, without time input.
-      Our losses emphasize closer denoising targets, making ours the only model without time input that
-      stays competitive with time-conditioned models across datasets and architectures.
+      Our losses emphasize closer denoising targets. Among models without time input, ours is the only one
+      that stays competitive with time-conditioned models across datasets and architectures.
     </p>
   </section>
 
@@ -96,8 +96,8 @@
         <div class="tv" data-traj-viewer="gd"></div>
       </div>
     </div>
-    <p class="note">16 curated ImageNet 256×256 samples (XL/2, CFG 4.0, 250 steps), with trajectories projected onto
-      their top three principal directions and level sets of the predicted distance \(u_\theta\).</p>
+    <p class="note">16 curated ImageNet 256×256 samples (XL/2, CFG 4.0, 250 steps). Each trajectory is projected onto
+      its top three principal directions and shown with level sets of the predicted distance \(u_\theta\).</p>
   </section>
 
   <section>
@@ -113,22 +113,25 @@
       the denoising direction \(\mathbf{v}_\theta(\mathbf{x})\). The head adds only 0.009%–0.19% parameters.
     </p>
 
+    <p>
+      \(\mathbf{x}\) linearly interpolates Gaussian noise and a data sample \(\mathbf{s}\). We train with two losses:
+    </p>
+
     <div class="cards">
       <div class="card">
         <h3>One-Step Loss</h3>
         $$\frac{\big\lVert \mathbf{x} - u_\theta(\mathbf{x})\,\mathbf{v}_\theta(\mathbf{x}) - \mathbf{s} \big\rVert^2}{\lVert \mathbf{x}-\mathbf{s}\rVert^2 + \epsilon}$$
-        <p>Emphasizes closer data points, mitigating the bias toward the data mean.</p>
+        <p>Emphasizes closer data points and mitigates the bias toward the data mean.</p>
       </div>
       <div class="card">
         <h3>Directional Eikonal Loss</h3>
         $$\Big\lVert \mathbf{v}_\theta(\mathbf{x}) - \frac{\mathbf{x}-\mathbf{s}}{\sqrt{\lVert \mathbf{x}-\mathbf{s}\rVert^2 + c_0}} \Big\rVert^2$$
-        <p>Disambiguates the offset \(C\) of the learned field as \(c_0\) by constraining the direction.</p>
+        <p>Constrains the direction of \(\mathbf{v}_\theta\), which fixes the offset of the learned field to \(c_0\).</p>
       </div>
     </div>
 
     <p>
-      \(\mathbf{x}\) linearly interpolates Gaussian noise and a data sample \(\mathbf{s}\). From Gaussian noise,
-      two deterministic samplers march toward the data manifold with step size \(\eta\):
+      From Gaussian noise, two deterministic samplers march toward the data manifold with step size \(\eta\):
     </p>
 
     <div class="cards">
@@ -188,14 +191,14 @@
             <tr class="ours"><td>Ours, gradient descent</td><td>✓</td><td class="num">6.67</td><td class="num"><b>311.31</b></td></tr>
           </tbody>
         </table>
-        <p class="note">Best over CFG scales per metric; B/2, 50k samples, 250 steps.</p>
+        <p class="note">Best over CFG scales per metric. B/2, 50k samples, 250 steps.</p>
       </div>
     </div>
 
     <figure>
       <img src="static/images/fid_vs_steps.png" alt="FID versus fraction of generation steps for SiT and our two samplers">
       <figcaption>
-        We reach the final FID of flow matching (SiT, dopri5) in &lt;60% of the steps. ImageNet, B/2, no CFG.
+        We reach the final FID of flow matching (SiT, dopri5) in fewer than 60% of the steps. ImageNet, B/2, no CFG.
       </figcaption>
     </figure>
   </section>
